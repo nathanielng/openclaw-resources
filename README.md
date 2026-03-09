@@ -12,12 +12,19 @@
 
 ## 2. OpenClaw News, Commentary, Blogs, Videos
 
+### 2.1 Peter Steinberger
+
 - 2026.02.25 [Builders Unscripted: Ep. 1 - Peter Steinberger, Creator of OpenClaw](https://www.youtube.com/watch?v=9jgcT0Fqt7U)
 - 2026.02.14 [OpenClaw, OpenAI and the future](https://steipete.me/posts/2026/openclaw) | Peter Steinberger
 - 2026.02.14 [Will AI replace programmers?](https://www.youtube.com/watch?v=ecBrO3GXdZ8) | Peter Steinberger and Lex Fridman
 - 2026.02.13 [Who will acquire OpenClaw? - OpenAI and Meta make big offers](https://www.youtube.com/watch?v=NMBoNFDOr_o) | Peter Steinberger and Lex Fridman
 - 2026.02.12 [How to code with AI agents - Advice from OpenClaw creator](https://www.youtube.com/watch?v=wKy1_KLcxcs) | Peter Steinberger and Lex Fridman
 - 2026.02.12 [OpenClaw: The Viral AI Agent that Broke the Internet - Peter Steinberger](https://www.youtube.com/watch?v=YFjfBk8HI5o) | Lex Fridman Podcast | Youtube
+
+
+### 2.2 Others
+
+- 2026.03.03 [OpenClaw is 100x better with this tool (Mission Control)](https://www.youtube.com/watch?v=RhLpV6QDBFE) | Alex Finn
 
 
 ## 3. Hosting

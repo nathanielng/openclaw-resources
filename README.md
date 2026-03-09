@@ -5,6 +5,13 @@
 - **Home**: [https://openclaw.ai/](https://openclaw.ai/)
 - **Github**: [https://github.com/openclaw/openclaw](https://github.com/openclaw/openclaw)
 
+## FAQ
+
+### Using MCPs vs Code Execution
+
+1. [Code execution with MCP: Building more efficient agents](https://www.anthropic.com/engineering/code-execution-with-mcp) | Anthropic
+2. [Code Mode: the better way to use MCP](https://blog.cloudflare.com/code-mode/) | The Cloudflare Blog
+
 ## OpenClaw on AWS
 
 ### Official

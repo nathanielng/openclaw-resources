@@ -7,7 +7,7 @@
 - **Discord**: [https://discord.com/invite/qkhbAGHRBT](https://discord.com/invite/qkhbAGHRBT)
 - **Luma** (Meetups): [https://luma.com/claw](https://luma.com/claw)
 - **X**: [https://x.com/openclaw](https://x.com/openclaw)
-- **OpenClaw Singapore**: [Instagram](https://www.instagram.com/clawsingapore) | [LinkedIn](https://www.linkedin.com/company/clawsingapore) | [Substack](https://clawsg.substack.com/) | [X](https://x.com/openclawsg)
+- **OpenClaw Singapore**: [ClawJunction](https://www.clawjunction.com/) | [Instagram](https://www.instagram.com/clawsingapore) | [LinkedIn](https://www.linkedin.com/company/clawsingapore) | [Substack](https://clawsg.substack.com/) | [X](https://x.com/openclawsg)
 
 
 ## 2. OpenClaw News, Commentary, Blogs, Videos

@@ -1,4 +1,4 @@
-# Awesome OpenClaw
+# OpenClaw Resources
 
 ## 1. OpenClaw
 

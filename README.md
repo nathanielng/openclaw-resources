@@ -12,6 +12,7 @@
 
 ## 2. Resources in this Repo
 
+- [openclaw-cli-help.md](openclaw-cli-help.md) — OpenClaw CLI comprehensive reference
 - [obsidian-cli-help.md](obsidian-cli-help.md) — Obsidian CLI command reference
 
 

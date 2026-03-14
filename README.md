@@ -38,7 +38,8 @@
 
 ### 4.1 Hosting Platforms
 
-- **AWS**: [Get started with OpenClaw on Lightsail](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-quick-start-guide-openclaw.html) | [Introducing OpenClaw on Amazon Lightsail](https://aws.amazon.com/blogs/aws/introducing-openclaw-on-amazon-lightsail-to-run-your-autonomous-private-ai-agents/) (4 Mar 2026)
+- **AWS/Lightsail**: [Get started with OpenClaw on Lightsail](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-quick-start-guide-openclaw.html) | [Introducing OpenClaw on Amazon Lightsail](https://aws.amazon.com/blogs/aws/introducing-openclaw-on-amazon-lightsail-to-run-your-autonomous-private-ai-agents/) (4 Mar 2026)
+- **AWS/Bedrock AgentCore**: Github: [sample-host-openclaw-on-amazon-bedrock-agentcore](https://github.com/aws-samples/sample-host-openclaw-on-amazon-bedrock-agentcore)
 - **Digital Ocean**: [Marketplace](https://marketplace.digitalocean.com/apps/openclaw) | [Announcement](https://www.digitalocean.com/blog/moltbot-on-digitalocean)
 - **Kimi**: [Kimi Claw](https://www.kimi.com/bot)
 

@@ -16,6 +16,7 @@
 - [openclaw-cli-help.md](openclaw-cli-help.md) — OpenClaw CLI comprehensive reference
   - [Messaging & Provider Setup](openclaw-cli-help.md#messaging--provider-setup) — Step-by-step setup for Telegram, Slack, Discord, WhatsApp, and OpenRouter
 - [obsidian-cli-help.md](obsidian-cli-help.md) — Obsidian CLI command reference
+- [memory-troubleshooting-guide.md](memory-troubleshooting-guide.md) — **Memory troubleshooting guide** (JavaScript heap OOM, GC diagnostics, heap profiling, prevention)
 
 
 ## 3. OpenClaw News, Commentary, Blogs, Videos

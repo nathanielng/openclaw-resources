@@ -98,7 +98,37 @@ sudo systemctl disable <unused-service>
 ```
 
 
-## 3. Docker Hardening
+## 3. AWS / Lightsail Deployment Findings
+
+The following issues were identified by a Cloud Security Engineer deploying OpenClaw via the official AWS Lightsail blueprint ([source](https://dev.to/aws-heroes/i-deployed-openclaw-on-aws-and-heres-what-i-found-as-a-cloud-security-engineer-3p9i)). They are not unique to AWS but are easy to overlook in one-click deployments.
+
+| # | Finding | Severity | Mitigation |
+|---|---|---|---|
+| 1 | Blueprint ships with 31+ unpatched security updates (including kernel patches) | High | Run `sudo apt update && sudo apt upgrade -y && sudo reboot` immediately after deploy |
+| 2 | `exec host policy: gateway` + `shell command approval: allow` eliminates all isolation | Critical | Keep exec policy on `sandbox`; set approval to `deny` or require explicit human confirmation |
+| 3 | Gateway Token displayed in plaintext in the dashboard | High | Rotate the token regularly; never expose the dashboard to the internet; use VPN or secure tunnel |
+| 4 | IPv6 enabled by default — IPv4-only firewall rules leave IPv6 traffic uncontrolled | Medium | Disable IPv6 if unused; audit firewall rules for both protocol families |
+| 5 | Apache2 web server bundled with no documented hardening | Medium | Keep Apache patched; restrict access to the dashboard to trusted IPs |
+
+### Additional AWS-specific hardening steps
+
+- **Generate your SSH keypair locally** — do not let the cloud provider generate it for you. The private key should never leave your machine.
+
+  ```bash
+  ssh-keygen -t ed25519 -C "openclaw-sandbox"
+  chmod 400 ~/.ssh/your-private-key
+  ```
+
+- **Restrict the firewall to known IPs from the start** — default Lightsail security groups open ports 80, 443, and 22 to `0.0.0.0/0`. Tighten these to your IP immediately:
+
+  ```bash
+  curl ifconfig.me  # get your public IP, then update the Lightsail firewall rules
+  ```
+
+- **Do not expose the OpenClaw dashboard to the internet** — access it only through a VPN or SSH tunnel.
+
+
+## 4. Docker Hardening
 
 The official OpenClaw image runs as a non-root user. Add these flags for further hardening:
 
@@ -271,6 +301,24 @@ approvals:
 
 > System prompt guardrails are soft guidance only. Hard enforcement comes from tool policy, exec approvals, sandboxing, and channel allowlists.
 
+### Disable link previews to prevent data exfiltration via messaging channels
+
+When OpenClaw is connected to a messaging app (Telegram, Slack, etc.), those apps automatically generate "link previews" for URLs in messages — making the same network request as clicking a link, with **no user interaction required**. A prompt injection attack that tricks OpenClaw into outputting an attacker-controlled URL with sensitive data appended will silently exfiltrate that data the moment the preview is fetched.
+
+**Fix for Telegram**: set `linkPreview: false` in `~/.openclaw/openclaw.json`:
+
+```json
+{
+  "channels": {
+    "telegram": {
+      "linkPreview": false
+    }
+  }
+}
+```
+
+Apply the equivalent setting for any other messaging channel that supports link previews. Verify the setting is in effect before connecting OpenClaw to any public or shared channel.
+
 
 ## 7. 3-Tier Defense Matrix (SlowMist Framework)
 
@@ -360,6 +408,38 @@ Internet
 ```
 
 For GPU-heavy workloads: run the Gateway on a minimal VM and route model inference to dedicated GPU nodes or managed APIs (OpenRouter, Bedrock, etc.).
+
+
+## Security News
+
+### GhostClaw: Malicious npm Package Impersonating OpenClaw (March 2026)
+
+**Source:** [GhostClaw Mimic as OpenClaw to Steal Everything from Developers — CybersecurityNews](https://cybersecuritynews.com/ghostclaw-mimic-as-openclaw/)
+
+**TLDR:** A rogue npm package (`@openclaw-ai/openclawai`) masqueraded as the official OpenClaw CLI installer to deploy a multi-stage RAT (tracked as GhostClaw/GhostLoader) that steals system credentials, browser data, SSH keys, cloud API keys, cryptocurrency wallet seed phrases, and macOS Keychain databases, then establishes persistent remote access.
+
+**How the attack works:**
+- A `postinstall` hook silently re-installs the malicious binary globally onto the system PATH.
+- A fake animated CLI installer UI and a spoofed macOS Keychain password prompt trick developers into entering their administrator password (up to 5 attempts, each validated against the real OS auth mechanism).
+- While the victim is distracted, the dropper fetches an AES-256-GCM–encrypted second-stage payload from `trackpipe[.]dev`, decrypts it, and installs it as a hidden `npm_telemetry` service with shell-hook persistence.
+- Stolen data is compressed and exfiltrated to attacker-controlled servers and Telegram channels.
+
+**Affected platforms:** macOS, Linux, and Windows.
+
+**Mitigation steps if you installed the package:**
+
+1. Remove the hidden malware directory: `rm -rf ~/.npm_telemetry`
+2. Check shell config files (`~/.zshrc`, `~/.bashrc`, `~/.bash_profile`) for injected hook lines and remove them.
+3. Kill any running `monitor.js` processes.
+4. Uninstall the package: `npm uninstall -g @openclaw-ai/openclawai`
+5. **Rotate all credentials immediately**: system passwords, SSH keys, AWS/GCP/Azure credentials, OpenAI/Stripe/GitHub API tokens, and any exposed crypto wallet seed phrases.
+6. Revoke all active browser sessions (Google, GitHub, etc.).
+7. **Strongly recommended: full system re-image**, given the depth of compromise.
+
+**Prevention:**
+- Only install OpenClaw from the official source (`openclaw/openclaw` on GitHub or the official docs).
+- Treat any npm package that requests system passwords, uses `postinstall` hooks to install itself globally, or fetches remote encrypted payloads at install time as a red flag.
+- JFrog Xray and JFrog Curation block this package; consider integrating software supply chain security tooling into your CI/CD pipeline.
 
 
 ## References

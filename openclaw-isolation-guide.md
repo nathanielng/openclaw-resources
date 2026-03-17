@@ -15,12 +15,11 @@ A practical reference for containing an OpenClaw deployment so that a compromise
 5. [Option C — Docker Sandbox (Recommended)](#5-option-c--docker-sandbox-recommended)
 6. [Option D — Dedicated VM](#6-option-d--dedicated-vm)
 7. [Option E — Dedicated Hardware](#7-option-e--dedicated-hardware)
-8. [Option F — Trusted Execution Environment (TEE)](#8-option-f--trusted-execution-environment-tee)
-9. [Cross-Cutting Controls](#9-cross-cutting-controls)
-10. [Indirect Prompt Injection](#indirect-prompt-injection)
-11. [Known Vulnerabilities](#10-known-vulnerabilities)
-12. [Quick-Start Checklist](#11-quick-start-checklist)
-13. [References](#references)
+8. [Cross-Cutting Controls](#9-cross-cutting-controls)
+9. [Indirect Prompt Injection](#indirect-prompt-injection)
+10. [Known Vulnerabilities](#10-known-vulnerabilities)
+11. [Quick-Start Checklist](#11-quick-start-checklist)
+12. [References](#references)
 
 ---
 
@@ -49,7 +48,6 @@ A [Shodan scan](https://docs.openclaw.ai/gateway/security) found 42,665 OpenClaw
 | Docker Sandbox | Medium | High | **Most deployments — sweet spot** |
 | Dedicated VM | Low | Very High | High-value machines, shared environments |
 | Dedicated Hardware | Low | Physical | Always-on "digital butler" setups |
-| TEE (NEAR AI Cloud) | Very Low | Cryptographic | Maximum confidentiality requirements |
 
 ---
 
@@ -239,19 +237,7 @@ Apply all Docker and OS hardening from the previous sections on the dedicated ma
 
 ---
 
-## 8. Option F — Trusted Execution Environment (TEE)
-
-[NEAR AI Cloud](https://near.ai/openclaw) runs OpenClaw inside a hardware TEE (Trusted Execution Environment). Code and data are encrypted in memory; even the cloud provider cannot inspect them.
-
-- Agent credentials never leave encrypted memory.
-- No trust required in the host OS or cloud operator.
-- Suitable for high-confidentiality deployments.
-
-This is the highest-assurance option if you don't want to manage your own infrastructure, but it requires trusting the TEE attestation chain.
-
----
-
-## 9. Cross-Cutting Controls
+## 8. Cross-Cutting Controls
 
 These controls apply regardless of which isolation option you choose.
 
@@ -387,7 +373,7 @@ System prompt guardrails alone are **not** sufficient — they are soft guidance
 
 ---
 
-## 10. Known Vulnerabilities
+## 9. Known Vulnerabilities
 
 | Vulnerability | CVSS | Description | Fix |
 |---|---|---|---|
@@ -418,7 +404,7 @@ Red flags for any npm package:
 
 ---
 
-## 11. Quick-Start Checklist
+## 10. Quick-Start Checklist
 
 Copy this checklist and tick items off before going live.
 

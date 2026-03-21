@@ -12,6 +12,9 @@
 
 ## 2. Resources in this Repo
 
+- **[openclaw_config_generator.py](openclaw_config_generator.py)** — **OpenClaw Config Generator** - Python tool to easily create OpenClaw JSON configurations for Telegram and Discord
+  - [CONFIG_GENERATOR_README.md](CONFIG_GENERATOR_README.md) — Full documentation and usage guide
+  - [example_usage.py](example_usage.py) — Example code showing how to use the generator
 - [openclaw-vm-security-guide.md](openclaw-vm-security-guide.md) — **VM security hardening guide** (network isolation, SSH, Docker, secrets, skills, prompt injection, CVEs)
 - [openclaw-cli-help.md](openclaw-cli-help.md) — OpenClaw CLI comprehensive reference
   - [Messaging & Provider Setup](openclaw-cli-help.md#messaging--provider-setup) — Step-by-step setup for Telegram, Slack, Discord, WhatsApp, and OpenRouter

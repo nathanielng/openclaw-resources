@@ -4,19 +4,31 @@ A Python tool to easily generate OpenClaw JSON configuration files for Telegram 
 
 ## Features
 
-- 🤖 **Interactive Mode**: Step-by-step prompts to create your config
+- 🌐 **Streamlit Web UI**: Point-and-click config generation in your browser
+- 🤖 **Interactive CLI**: Step-by-step prompts to create your config
 - 📝 **Programmatic API**: Use in your own Python scripts
 - 🔐 **Environment Variables**: Support for `$VARIABLE` references
 - ⚡ **Simple & Fast**: Generate configs in seconds
 
 ## Quick Start
 
-### Interactive Mode
+### Streamlit Web UI (Recommended)
 
-Run the script without arguments for an interactive configuration experience:
+Install dependencies and launch the browser-based UI:
 
 ```bash
-python openclaw_config_generator.py
+pip install -r scripts/requirements.txt
+streamlit run scripts/streamlit_app.py
+```
+
+Fill in your tokens and IDs, preview the JSON live, and download `openclaw-config.json` directly.
+
+### Interactive CLI
+
+Run the script without arguments for a terminal prompt experience:
+
+```bash
+python scripts/openclaw_config_generator.py
 ```
 
 You'll be prompted to enter:
@@ -54,7 +66,7 @@ For Telegram, the generator creates:
 You can also use the generator in your own Python scripts:
 
 ```python
-from openclaw_config_generator import OpenClawConfigGenerator
+from scripts.openclaw_config_generator import OpenClawConfigGenerator
 
 # Create a new generator
 gen = OpenClawConfigGenerator()
@@ -144,7 +156,7 @@ Save configuration to a JSON file.
 ### Example 1: Telegram Only
 
 ```python
-from openclaw_config_generator import OpenClawConfigGenerator
+from scripts.openclaw_config_generator import OpenClawConfigGenerator
 
 gen = OpenClawConfigGenerator()
 gen.add_telegram(
@@ -158,7 +170,7 @@ gen.save("telegram-config.json")
 ### Example 2: Discord Only
 
 ```python
-from openclaw_config_generator import OpenClawConfigGenerator
+from scripts.openclaw_config_generator import OpenClawConfigGenerator
 
 gen = OpenClawConfigGenerator()
 gen.add_discord(
@@ -173,7 +185,7 @@ gen.save("discord-config.json")
 ### Example 3: Both Telegram and Discord
 
 ```python
-from openclaw_config_generator import OpenClawConfigGenerator
+from scripts.openclaw_config_generator import OpenClawConfigGenerator
 
 gen = OpenClawConfigGenerator()
 

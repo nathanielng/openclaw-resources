@@ -173,6 +173,32 @@ services:
     entrypoint: ["openclaw"]
     network_mode: "service:openclaw-4"
 
+  # ── Mission Control ───────────────────────────────────────────────────────
+  mission-control:
+    build: ./mission-control
+    container_name: openclaw-mission-control
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock  # needed to run docker compose commands
+      - .:/workspace:ro                            # compose file (read-only)
+      - ./data:/data                               # instance .env files + kanban/cost state
+    environment:
+      - COMPOSE_FILE=/workspace/docker-compose.multi.yml
+      - DATA_DIR=/data
+      - PORT=4000
+    networks:
+      - openclaw-net
+    depends_on:
+      - openclaw-1
+      - openclaw-2
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/api/instances"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
 networks:
   openclaw-net:
     driver: bridge

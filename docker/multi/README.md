@@ -23,15 +23,41 @@ Use Kubernetes only if you need to spread containers across multiple machines or
 
 ## Quick Start
 
-### 1. Create the data directories
+All commands below must be run from the `docker/multi/` directory:
 
-Each instance needs its own directory for config, state, and workspace files.
+```bash
+cd openclaw-resources/docker/multi
+```
+
+### 1. Stop any conflicting containers
+
+If you already have OpenClaw containers running (e.g. from a single-instance setup), stop them first — otherwise the ports will clash:
+
+```bash
+# Stop and remove all running openclaw containers
+docker compose down
+
+# Or, if you started with profiles:
+docker compose --profile three --profile four down
+```
+
+To check what is currently running:
+
+```bash
+docker ps
+```
+
+Ports used by this multi-instance setup: **18789, 18790, 18791, 18792, 4000**. Make sure none of these are occupied before proceeding.
+
+### 2. Create the data directories
+
+Each instance needs its own directory for config, state, and workspace files. Run this from `docker/multi/`:
 
 ```bash
 mkdir -p data/instance-1 data/instance-2 data/instance-3 data/instance-4
 ```
 
-### 2. Create a `.env` file for each instance
+### 3. Create a `.env` file for each instance
 
 Each instance must have its own `data/instance-N/.env`. Copy and edit:
 
@@ -46,7 +72,7 @@ TZ=America/New_York
 
 Use a different `OPENCLAW_GATEWAY_TOKEN` per instance so they can't be confused.
 
-### 3. Build the mission control image
+### 4. Build the mission control image
 
 ```bash
 docker compose build mission-control
@@ -54,13 +80,13 @@ docker compose build mission-control
 
 This only needs to be run once (or after updating files in `mission-control/`).
 
-### 4. Pull the OpenClaw image
+### 5. Pull the OpenClaw image
 
 ```bash
 docker compose pull
 ```
 
-### 5. Run the onboarding wizard per instance
+### 6. Run the onboarding wizard per instance
 
 Each instance needs its own onboarding (chooses model, configures channels, etc.):
 
@@ -83,7 +109,7 @@ For headless/non-interactive setup:
 docker compose run --rm openclaw-1-cli onboard --non-interactive
 ```
 
-### 6. Start the containers
+### 7. Start the containers
 
 ```bash
 # 2 containers (instances 1 and 2) + mission control
@@ -98,7 +124,7 @@ docker compose --profile four up -d
 
 Mission Control is available at **http://localhost:4000** once the stack is up. Use it to paste API keys, launch/stop the fleet, monitor health, and view live logs — without touching the command line.
 
-### 7. Verify
+### 8. Verify
 
 ```bash
 docker compose ps
@@ -119,6 +145,38 @@ docker compose run --rm openclaw-2-cli doctor
 | openclaw-3 (Comms)    | 18791 | http://localhost:18791 |
 | openclaw-4 (Ops)      | 18792 | http://localhost:18792 |
 | Mission Control       | 4000  | http://localhost:4000  |
+
+---
+
+## Connecting to Gateways
+
+Each instance exposes an HTTP gateway on its host port. Connect your clients (apps, bots, CLI tools) to the relevant URL:
+
+| Instance | Gateway URL | Notes |
+|---|---|---|
+| openclaw-1 (Research)  | http://localhost:18789 | Default instance |
+| openclaw-2 (Coding)    | http://localhost:18790 | |
+| openclaw-3 (Comms)     | http://localhost:18791 | Requires `--profile three` or `--profile four` |
+| openclaw-4 (Ops)       | http://localhost:18792 | Requires `--profile four` |
+| Mission Control        | http://localhost:4000  | Web UI — manage all instances |
+
+To verify each gateway is up and accepting connections:
+
+```bash
+curl http://localhost:18789/healthz
+curl http://localhost:18790/healthz
+curl http://localhost:18791/healthz   # if running instance 3
+curl http://localhost:18792/healthz   # if running instance 4
+```
+
+Or use the CLI doctor command:
+
+```bash
+docker compose run --rm openclaw-1-cli doctor
+docker compose run --rm openclaw-2-cli doctor
+```
+
+To connect from another machine on the same LAN, replace `localhost` with the host machine's IP address (and ensure the ports are not firewalled). To restrict access to localhost only, see the Security Notes section.
 
 ---
 
@@ -195,10 +253,12 @@ Each instance has independent channels, models, skills, memory, and cron jobs. A
 
 ## Volume Ownership
 
-OpenClaw runs as user `node` (uid 1000) inside the container. If you see permission errors on the data directories:
+The `data/instance-N/` directories live on your **host machine** (under `docker/multi/data/`), not inside the container. Docker mounts them into each container at `/root/.openclaw`.
+
+OpenClaw runs as user `node` (uid 1000) inside the container. If that user lacks write access to the mounted host directories, you will see permission errors. Fix them on the host:
 
 ```bash
-# macOS / Linux
+# macOS / Linux — run from docker/multi/
 sudo chown -R 1000:1000 data/
 
 # Windows (Docker Desktop with WSL2 backend) — typically not needed

@@ -253,10 +253,12 @@ Each instance has independent channels, models, skills, memory, and cron jobs. A
 
 ## Volume Ownership
 
-OpenClaw runs as user `node` (uid 1000) inside the container. If you see permission errors on the data directories:
+The `data/instance-N/` directories live on your **host machine** (under `docker/multi/data/`), not inside the container. Docker mounts them into each container at `/root/.openclaw`.
+
+OpenClaw runs as user `node` (uid 1000) inside the container. If that user lacks write access to the mounted host directories, you will see permission errors. Fix them on the host:
 
 ```bash
-# macOS / Linux
+# macOS / Linux — run from docker/multi/
 sudo chown -R 1000:1000 data/
 
 # Windows (Docker Desktop with WSL2 backend) — typically not needed

@@ -1,0 +1,204 @@
+# OpenClaw Multi-Container Setup
+#
+# Runs 2, 3, or 4 independent OpenClaw gateway instances on a single Docker host.
+# Each instance has its own port, data directory, and configuration.
+#
+# Run from this directory (docker/multi/):
+#   2 containers:  docker compose up -d
+#   3 containers:  docker compose --profile three up -d
+#   4 containers:  docker compose --profile four up -d
+#
+# CLI access per instance (examples):
+#   docker compose run --rm openclaw-1-cli doctor
+#   docker compose run --rm openclaw-2-cli gateway restart
+#
+# Stop all:
+#   docker compose --profile three --profile four down
+#
+# Prerequisites:
+#   - Create data directories and .env files before first run (see README.md)
+#   - Run onboarding per instance:
+#       docker compose run --rm openclaw-1-cli onboard
+#       docker compose run --rm openclaw-2-cli onboard
+#
+# Data directories (create these on your host):
+#   ./data/instance-1/    maps to ~/.openclaw in openclaw-1
+#   ./data/instance-2/    maps to ~/.openclaw in openclaw-2
+#   ./data/instance-3/    maps to ~/.openclaw in openclaw-3  (profile: three)
+#   ./data/instance-4/    maps to ~/.openclaw in openclaw-4  (profile: four)
+#
+# Ports:
+#   Instance 1:  18789
+#   Instance 2:  18790
+#   Instance 3:  18791  (profile: three)
+#   Instance 4:  18792  (profile: four)
+
+services:
+
+  # ── Instance 1 ────────────────────────────────────────────────────────────
+  openclaw-1:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: openclaw-1
+    restart: unless-stopped
+    ports:
+      - "18789:18789"
+    volumes:
+      - ./data/instance-1:/root/.openclaw
+    env_file:
+      - {path: ./data/instance-1/.env, required: false}
+    environment:
+      - OPENCLAW_GATEWAY_PORT=18789
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:18789/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - openclaw-net
+
+  openclaw-1-cli:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: openclaw-1-cli
+    profiles:
+      - cli
+    volumes:
+      - ./data/instance-1:/root/.openclaw
+    env_file:
+      - {path: ./data/instance-1/.env, required: false}
+    entrypoint: ["openclaw"]
+    network_mode: "service:openclaw-1"
+
+  # ── Instance 2 ────────────────────────────────────────────────────────────
+  openclaw-2:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: openclaw-2
+    restart: unless-stopped
+    ports:
+      - "18790:18789"
+    volumes:
+      - ./data/instance-2:/root/.openclaw
+    env_file:
+      - {path: ./data/instance-2/.env, required: false}
+    environment:
+      - OPENCLAW_GATEWAY_PORT=18789
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:18789/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - openclaw-net
+
+  openclaw-2-cli:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: openclaw-2-cli
+    profiles:
+      - cli
+    volumes:
+      - ./data/instance-2:/root/.openclaw
+    env_file:
+      - {path: ./data/instance-2/.env, required: false}
+    entrypoint: ["openclaw"]
+    network_mode: "service:openclaw-2"
+
+  # ── Instance 3 (activate with --profile three) ────────────────────────────
+  openclaw-3:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: openclaw-3
+    profiles:
+      - three
+      - four
+    restart: unless-stopped
+    ports:
+      - "18791:18789"
+    volumes:
+      - ./data/instance-3:/root/.openclaw
+    env_file:
+      - {path: ./data/instance-3/.env, required: false}
+    environment:
+      - OPENCLAW_GATEWAY_PORT=18789
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:18789/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - openclaw-net
+
+  openclaw-3-cli:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: openclaw-3-cli
+    profiles:
+      - cli-three
+      - cli-four
+    volumes:
+      - ./data/instance-3:/root/.openclaw
+    env_file:
+      - {path: ./data/instance-3/.env, required: false}
+    entrypoint: ["openclaw"]
+    network_mode: "service:openclaw-3"
+
+  # ── Instance 4 (activate with --profile four) ─────────────────────────────
+  openclaw-4:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: openclaw-4
+    profiles:
+      - four
+    restart: unless-stopped
+    ports:
+      - "18792:18789"
+    volumes:
+      - ./data/instance-4:/root/.openclaw
+    env_file:
+      - {path: ./data/instance-4/.env, required: false}
+    environment:
+      - OPENCLAW_GATEWAY_PORT=18789
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:18789/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - openclaw-net
+
+  openclaw-4-cli:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: openclaw-4-cli
+    profiles:
+      - cli-four
+    volumes:
+      - ./data/instance-4:/root/.openclaw
+    env_file:
+      - {path: ./data/instance-4/.env, required: false}
+    entrypoint: ["openclaw"]
+    network_mode: "service:openclaw-4"
+
+  # ── Mission Control ───────────────────────────────────────────────────────
+  mission-control:
+    build: ./mission-control
+    container_name: openclaw-mission-control
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock  # needed to run docker compose commands
+      - .:/workspace:ro                            # compose file (read-only)
+      - ./data:/data                               # instance .env files + kanban/cost state
+    environment:
+      - COMPOSE_FILE=/workspace/docker-compose.yml
+      - DATA_DIR=/data
+      - PORT=4000
+    networks:
+      - openclaw-net
+    depends_on:
+      - openclaw-1
+      - openclaw-2
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/api/instances"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  openclaw-net:
+    driver: bridge

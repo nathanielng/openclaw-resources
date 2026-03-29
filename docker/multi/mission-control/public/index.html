@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenClaw Mission Control</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="topbar">
+  <div class="topbar-brand">OpenClaw <span>Mission Control</span></div>
+  <div class="tabs" role="tablist">
+    <button class="tab active" data-panel="fleet"    role="tab">Fleet</button>
+    <button class="tab"        data-panel="kanban"   role="tab">Kanban</button>
+    <button class="tab"        data-panel="logs"     role="tab">Live Logs</button>
+    <button class="tab"        data-panel="cost"     role="tab">Cost</button>
+    <button class="tab"        data-panel="pairings" role="tab">Pairings <span id="pairing-badge" class="badge hidden">0</span></button>
+    <button class="tab"        data-panel="config"   role="tab">Config &amp; Launch</button>
+  </div>
+  <div class="ws-dot" id="ws-dot" title="WebSocket"></div>
+</nav>
+
+<main class="main">
+
+  <!-- ── Fleet ──────────────────────────────────────────────────────────── -->
+  <section class="panel active" id="panel-fleet">
+    <div class="section-header">
+      <span class="section-title">Agent Fleet</span>
+      <span class="text-muted text-sm" id="fleet-updated"></span>
+    </div>
+    <div class="fleet-grid" id="fleet-grid"></div>
+  </section>
+
+  <!-- ── Kanban ─────────────────────────────────────────────────────────── -->
+  <section class="panel" id="panel-kanban">
+    <div class="section-header">
+      <span class="section-title">Task Board</span>
+      <button class="btn btn-primary btn-sm" id="btn-add-task">+ New Task</button>
+    </div>
+
+    <div class="add-task-form" id="add-task-form">
+      <div class="form-group" style="flex:2;min-width:180px">
+        <label>Title</label>
+        <input type="text" id="task-title" placeholder="What needs to happen?" />
+      </div>
+      <div class="form-group" style="min-width:120px">
+        <label>Assign to</label>
+        <select id="task-assignee">
+          <option value="">— any —</option>
+          <option value="1">Research</option>
+          <option value="2">Coding</option>
+          <option value="3">Comms</option>
+          <option value="4">Ops</option>
+        </select>
+      </div>
+      <div class="form-group" style="min-width:100px">
+        <label>Column</label>
+        <select id="task-column">
+          <option value="backlog">Backlog</option>
+          <option value="inprogress">In Progress</option>
+          <option value="review">Review</option>
+          <option value="done">Done</option>
+        </select>
+      </div>
+      <div class="form-group" style="min-width:90px">
+        <label>Priority</label>
+        <select id="task-priority">
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+      <div class="form-group" style="align-self:flex-end">
+        <button class="btn btn-primary" id="btn-save-task">Add</button>
+        <button class="btn btn-ghost"   id="btn-cancel-task" style="margin-left:6px">Cancel</button>
+      </div>
+    </div>
+
+    <div class="kanban-board" id="kanban-board">
+      <div class="kanban-col" data-col="backlog">
+        <div class="kanban-col-header">Backlog <span class="col-count" id="cnt-backlog">0</span></div>
+        <div class="kanban-items" id="col-backlog"></div>
+      </div>
+      <div class="kanban-col" data-col="inprogress">
+        <div class="kanban-col-header">In Progress <span class="col-count" id="cnt-inprogress">0</span></div>
+        <div class="kanban-items" id="col-inprogress"></div>
+      </div>
+      <div class="kanban-col" data-col="review">
+        <div class="kanban-col-header">Review <span class="col-count" id="cnt-review">0</span></div>
+        <div class="kanban-items" id="col-review"></div>
+      </div>
+      <div class="kanban-col" data-col="done">
+        <div class="kanban-col-header">Done <span class="col-count" id="cnt-done">0</span></div>
+        <div class="kanban-items" id="col-done"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Live Logs ──────────────────────────────────────────────────────── -->
+  <section class="panel" id="panel-logs">
+    <div class="log-controls">
+      <span class="section-title">Live Logs</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap" id="log-toggles">
+        <button class="btn btn-ghost btn-sm log-toggle active" data-id="1">Research</button>
+        <button class="btn btn-ghost btn-sm log-toggle"        data-id="2">Coding</button>
+        <button class="btn btn-ghost btn-sm log-toggle"        data-id="3">Comms</button>
+        <button class="btn btn-ghost btn-sm log-toggle"        data-id="4">Ops</button>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" id="btn-clear-logs">Clear</button>
+        <label class="instance-check text-sm">
+          <input type="checkbox" id="auto-scroll" checked> Auto-scroll
+        </label>
+      </div>
+    </div>
+    <div class="log-box" id="log-box"></div>
+  </section>
+
+  <!-- ── Cost ───────────────────────────────────────────────────────────── -->
+  <section class="panel" id="panel-cost">
+    <div class="section-header">
+      <span class="section-title">Cost Tracker</span>
+      <span class="text-muted text-sm">Estimated from token counts in logs. Set API keys for exact costs.</span>
+    </div>
+
+    <div class="cost-grid" id="cost-grid"></div>
+
+    <div class="config-card" style="max-width:400px">
+      <h3>Daily Budget Alert</h3>
+      <div class="form-group">
+        <label>Alert threshold (USD / day)</label>
+        <div class="flex gap-2 items-center">
+          <input type="number" id="budget-input" placeholder="e.g. 5.00" style="width:120px" step="0.5" min="0">
+          <button class="btn btn-primary btn-sm" id="btn-save-budget">Save</button>
+        </div>
+      </div>
+      <p class="text-muted text-sm mt-2" id="budget-status"></p>
+    </div>
+  </section>
+
+  <!-- ── Pairings ───────────────────────────────────────────────────────── -->
+  <section class="panel" id="panel-pairings">
+    <div class="section-header">
+      <span class="section-title">Device Pairing</span>
+    </div>
+    <p class="text-muted text-sm" style="margin-bottom:16px">
+      When a new user messages your agent, OpenClaw issues a pairing code.
+      The user enters it via <code style="font-family:var(--font-mono)">channels login</code> in their client.
+      Codes detected in logs appear here for visibility. Dismiss when done.
+    </p>
+    <div class="pairing-list" id="pairing-list">
+      <div class="empty-state">No pending pairing codes detected</div>
+    </div>
+  </section>
+
+  <!-- ── Config & Launch ────────────────────────────────────────────────── -->
+  <section class="panel" id="panel-config">
+    <div class="section-header">
+      <span class="section-title">Config &amp; Launch</span>
+    </div>
+
+    <!-- Launch controls -->
+    <div class="launch-controls">
+      <h3>Fleet Controls</h3>
+      <p class="text-muted text-sm" style="margin-bottom:12px">
+        Select how many containers to run, then Launch. Stop terminates all instances.
+      </p>
+      <div>
+        <label style="margin-bottom:8px">Number of containers</label>
+        <div class="count-selector" id="count-selector">
+          <button class="count-btn active" data-count="2">2 agents</button>
+          <button class="count-btn"        data-count="3">3 agents</button>
+          <button class="count-btn"        data-count="4">4 agents</button>
+        </div>
+      </div>
+      <div class="flex gap-2 mt-3">
+        <button class="btn btn-success" id="btn-launch">▶ Launch</button>
+        <button class="btn btn-danger"  id="btn-stop">■ Stop All</button>
+        <button class="btn btn-ghost"   id="btn-pull">↓ Pull Latest Image</button>
+      </div>
+      <pre class="compose-output" id="compose-output"></pre>
+    </div>
+
+    <!-- API Keys -->
+    <div class="config-grid">
+      <div class="config-card">
+        <h3>API Keys</h3>
+        <p class="text-muted text-sm" style="margin-bottom:12px">
+          Paste keys below. They are written to each instance's <code style="font-family:var(--font-mono)">.env</code> file
+          with <code style="font-family:var(--font-mono)">chmod 600</code> and never logged.
+        </p>
+        <div class="form-group">
+          <label>ANTHROPIC_API_KEY</label>
+          <input type="password" id="key-anthropic" placeholder="sk-ant-…" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>OPENCLAW_GATEWAY_TOKEN</label>
+          <input type="password" id="key-gateway" placeholder="shared or per-agent token" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>OPENAI_API_KEY (optional)</label>
+          <input type="password" id="key-openai" placeholder="sk-…" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>Apply to instances</label>
+          <div class="instance-checkboxes" id="key-instances">
+            <label class="instance-check"><input type="checkbox" value="1" checked> Research (1)</label>
+            <label class="instance-check"><input type="checkbox" value="2" checked> Coding (2)</label>
+            <label class="instance-check"><input type="checkbox" value="3" checked> Comms (3)</label>
+            <label class="instance-check"><input type="checkbox" value="4" checked> Ops (4)</label>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="btn-save-keys">Save Keys</button>
+      </div>
+
+      <div class="config-card">
+        <h3>Stored Keys (masked)</h3>
+        <p class="text-muted text-sm" style="margin-bottom:12px">
+          Current values on disk, masked for display.
+        </p>
+        <div id="keys-preview" class="text-mono text-sm text-muted">Loading…</div>
+        <button class="btn btn-ghost btn-sm mt-3" id="btn-refresh-keys">Refresh</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div id="toast-container"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

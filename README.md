@@ -12,9 +12,39 @@
 
 ## 2. Resources in this Repo
 
+### Docker Setup
+
+| Path | What it is |
+|---|---|
+| [`docker/single/docker-compose.yml`](docker/single/docker-compose.yml) | Single-container setup — one OpenClaw gateway + CLI service |
+| [`docker/multi/docker-compose.yml`](docker/multi/docker-compose.yml) | Multi-container setup — 2, 3, or 4 independent instances via Compose profiles |
+| [`docker/multi/README.md`](docker/multi/README.md) | Step-by-step guide for the multi-container setup |
+| [`docker/multi/mission-control/`](docker/multi/mission-control/) | Mission control dashboard (Node.js) — fleet health, Kanban, live logs, cost tracker, pairing approvals |
+
+**Single container** (one agent, port 18789):
+```bash
+cd docker/single
+docker compose up -d
+docker compose run --rm openclaw-cli onboard
+```
+
+**Multi-container** (2–4 agents, ports 18789–18792, dashboard at :4000):
+```bash
+cd docker/multi
+docker compose build mission-control  # first time only
+docker compose up -d                  # 2 agents + dashboard
+docker compose --profile three up -d  # 3 agents
+docker compose --profile four  up -d  # 4 agents
+```
+
+### Guides & References
+
 - [openclaw-vm-security-guide.md](openclaw-vm-security-guide.md) — **VM security hardening guide** (network isolation, SSH, Docker, secrets, skills, prompt injection, CVEs)
+- [openclaw-isolation-guide.md](openclaw-isolation-guide.md) — **Isolation guide** (sandboxing options: native, built-in, Docker, VM, dedicated hardware)
 - [openclaw-cli-help.md](openclaw-cli-help.md) — OpenClaw CLI comprehensive reference
   - [Messaging & Provider Setup](openclaw-cli-help.md#messaging--provider-setup) — Step-by-step setup for Telegram, Slack, Discord, WhatsApp, and OpenRouter
+- [openclaw-cli-help-docker.md](openclaw-cli-help-docker.md) — CLI reference using `docker compose run` syntax
+- [SYNOLOGY.md](SYNOLOGY.md) — Running OpenClaw on a Synology NAS
 - [obsidian-cli-help.md](obsidian-cli-help.md) — Obsidian CLI command reference
 - [memory-troubleshooting-guide.md](memory-troubleshooting-guide.md) — **Memory troubleshooting guide** (JavaScript heap OOM, GC diagnostics, heap profiling, prevention)
 

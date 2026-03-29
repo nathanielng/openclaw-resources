@@ -1,0 +1,52 @@
+# OpenClaw — single container
+#
+# Run from this directory:
+#   docker compose up -d
+#
+# CLI access:
+#   docker compose run --rm openclaw-cli <command>
+#   docker compose run --rm openclaw-cli onboard
+#   docker compose run --rm openclaw-cli doctor
+#
+# Prerequisites:
+#   - Create a .env file in this directory with your API keys (see below)
+#   - Create the data directory:  mkdir -p data
+#
+# .env file example:
+#   ANTHROPIC_API_KEY=sk-ant-...
+#   OPENCLAW_GATEWAY_TOKEN=change-me
+#   TZ=America/New_York
+#
+# Data directory (created on first run if missing):
+#   ./data/    maps to ~/.openclaw inside the container
+
+services:
+  openclaw:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: openclaw
+    restart: unless-stopped
+    ports:
+      - "18789:18789"
+    volumes:
+      - ./data:/root/.openclaw
+    env_file:
+      - path: .env
+        required: false
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:18789/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  openclaw-cli:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: openclaw-cli
+    profiles:
+      - cli
+    volumes:
+      - ./data:/root/.openclaw
+    env_file:
+      - path: .env
+        required: false
+    entrypoint: ["openclaw"]
+    network_mode: "service:openclaw"

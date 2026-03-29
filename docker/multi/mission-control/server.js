@@ -15,7 +15,7 @@ const wss = new WebSocketServer({ server });
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const COMPOSE_FILE = process.env.COMPOSE_FILE || '/workspace/docker-compose.multi.yml';
+const COMPOSE_FILE = process.env.COMPOSE_FILE || '/workspace/docker-compose.yml';
 const COMPOSE_PROJECT_DIR = path.dirname(COMPOSE_FILE);
 const DATA_DIR = process.env.DATA_DIR || '/data';
 const MC_DATA = path.join(DATA_DIR, '.mission-control');

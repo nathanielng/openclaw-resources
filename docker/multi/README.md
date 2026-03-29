@@ -46,13 +46,21 @@ TZ=America/New_York
 
 Use a different `OPENCLAW_GATEWAY_TOKEN` per instance so they can't be confused.
 
-### 3. Pull the image
+### 3. Build the mission control image
+
+```bash
+docker compose build mission-control
+```
+
+This only needs to be run once (or after updating files in `mission-control/`).
+
+### 4. Pull the OpenClaw image
 
 ```bash
 docker compose pull
 ```
 
-### 4. Run the onboarding wizard per instance
+### 5. Run the onboarding wizard per instance
 
 Each instance needs its own onboarding (chooses model, configures channels, etc.):
 
@@ -75,20 +83,22 @@ For headless/non-interactive setup:
 docker compose run --rm openclaw-1-cli onboard --non-interactive
 ```
 
-### 5. Start the containers
+### 6. Start the containers
 
 ```bash
-# 2 containers (instances 1 and 2)
+# 2 containers (instances 1 and 2) + mission control
 docker compose up -d
 
-# 3 containers
+# 3 containers + mission control
 docker compose --profile three up -d
 
-# 4 containers
+# 4 containers + mission control
 docker compose --profile four up -d
 ```
 
-### 6. Verify
+Mission Control is available at **http://localhost:4000** once the stack is up. Use it to paste API keys, launch/stop the fleet, monitor health, and view live logs — without touching the command line.
+
+### 7. Verify
 
 ```bash
 docker compose ps
@@ -102,12 +112,13 @@ docker compose run --rm openclaw-2-cli doctor
 
 ## Port Map
 
-| Instance | Host Port | URL |
+| Service | Host Port | URL |
 |---|---|---|
-| 1 | 18789 | http://localhost:18789 |
-| 2 | 18790 | http://localhost:18790 |
-| 3 | 18791 | http://localhost:18791 |
-| 4 | 18792 | http://localhost:18792 |
+| openclaw-1 (Research) | 18789 | http://localhost:18789 |
+| openclaw-2 (Coding)   | 18790 | http://localhost:18790 |
+| openclaw-3 (Comms)    | 18791 | http://localhost:18791 |
+| openclaw-4 (Ops)      | 18792 | http://localhost:18792 |
+| Mission Control       | 4000  | http://localhost:4000  |
 
 ---
 
@@ -199,5 +210,5 @@ sudo chown -R 1000:1000 data/
 
 - Use a different `OPENCLAW_GATEWAY_TOKEN` for each instance.
 - Bind to `127.0.0.1` if you don't need LAN access: change port mapping to `"127.0.0.1:18789:18789"`.
-- For hardened container settings (read-only filesystem, capability drops), see [`openclaw-isolation-guide.md`](openclaw-isolation-guide.md).
+- For hardened container settings (read-only filesystem, capability drops), see [`openclaw-isolation-guide.md`](../../openclaw-isolation-guide.md).
 - Never commit `.env` files to version control.

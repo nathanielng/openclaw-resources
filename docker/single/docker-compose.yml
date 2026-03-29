@@ -30,7 +30,8 @@ services:
     volumes:
       - ./data:/root/.openclaw
     env_file:
-      - .env
+      - path: .env
+        required: false
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:18789/healthz"]
       interval: 30s
@@ -45,6 +46,7 @@ services:
     volumes:
       - ./data:/root/.openclaw
     env_file:
-      - .env
+      - path: .env
+        required: false
     entrypoint: ["openclaw"]
     network_mode: "service:openclaw"

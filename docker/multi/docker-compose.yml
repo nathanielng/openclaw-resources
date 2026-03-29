@@ -45,7 +45,7 @@ services:
     volumes:
       - ./data/instance-1:/root/.openclaw
     env_file:
-      - ./data/instance-1/.env
+      - {path: ./data/instance-1/.env, required: false}
     environment:
       - OPENCLAW_GATEWAY_PORT=18789
     healthcheck:
@@ -64,7 +64,7 @@ services:
     volumes:
       - ./data/instance-1:/root/.openclaw
     env_file:
-      - ./data/instance-1/.env
+      - {path: ./data/instance-1/.env, required: false}
     entrypoint: ["openclaw"]
     network_mode: "service:openclaw-1"
 
@@ -78,7 +78,7 @@ services:
     volumes:
       - ./data/instance-2:/root/.openclaw
     env_file:
-      - ./data/instance-2/.env
+      - {path: ./data/instance-2/.env, required: false}
     environment:
       - OPENCLAW_GATEWAY_PORT=18789
     healthcheck:
@@ -97,7 +97,7 @@ services:
     volumes:
       - ./data/instance-2:/root/.openclaw
     env_file:
-      - ./data/instance-2/.env
+      - {path: ./data/instance-2/.env, required: false}
     entrypoint: ["openclaw"]
     network_mode: "service:openclaw-2"
 
@@ -114,7 +114,7 @@ services:
     volumes:
       - ./data/instance-3:/root/.openclaw
     env_file:
-      - ./data/instance-3/.env
+      - {path: ./data/instance-3/.env, required: false}
     environment:
       - OPENCLAW_GATEWAY_PORT=18789
     healthcheck:
@@ -134,7 +134,7 @@ services:
     volumes:
       - ./data/instance-3:/root/.openclaw
     env_file:
-      - ./data/instance-3/.env
+      - {path: ./data/instance-3/.env, required: false}
     entrypoint: ["openclaw"]
     network_mode: "service:openclaw-3"
 
@@ -150,7 +150,7 @@ services:
     volumes:
       - ./data/instance-4:/root/.openclaw
     env_file:
-      - ./data/instance-4/.env
+      - {path: ./data/instance-4/.env, required: false}
     environment:
       - OPENCLAW_GATEWAY_PORT=18789
     healthcheck:
@@ -169,7 +169,7 @@ services:
     volumes:
       - ./data/instance-4:/root/.openclaw
     env_file:
-      - ./data/instance-4/.env
+      - {path: ./data/instance-4/.env, required: false}
     entrypoint: ["openclaw"]
     network_mode: "service:openclaw-4"
 
@@ -185,7 +185,7 @@ services:
       - .:/workspace:ro                            # compose file (read-only)
       - ./data:/data                               # instance .env files + kanban/cost state
     environment:
-      - COMPOSE_FILE=/workspace/docker-compose.multi.yml
+      - COMPOSE_FILE=/workspace/docker-compose.yml
       - DATA_DIR=/data
       - PORT=4000
     networks:

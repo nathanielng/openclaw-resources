@@ -31,7 +31,8 @@ docker compose run --rm openclaw-cli onboard
 **Multi-container** (2–4 agents, ports 18789–18792, dashboard at :4000):
 ```bash
 cd docker/multi
-docker compose up -d           # 2 agents
+docker compose build mission-control  # first time only
+docker compose up -d                  # 2 agents + dashboard
 docker compose --profile three up -d  # 3 agents
 docker compose --profile four  up -d  # 4 agents
 ```

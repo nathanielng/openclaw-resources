@@ -3,23 +3,23 @@
 # Runs 2, 3, or 4 independent OpenClaw gateway instances on a single Docker host.
 # Each instance has its own port, data directory, and configuration.
 #
-# Usage:
-#   2 containers:  docker compose -f docker-compose.multi.yml up -d
-#   3 containers:  docker compose -f docker-compose.multi.yml --profile three up -d
-#   4 containers:  docker compose -f docker-compose.multi.yml --profile four up -d
+# Run from this directory (docker/multi/):
+#   2 containers:  docker compose up -d
+#   3 containers:  docker compose --profile three up -d
+#   4 containers:  docker compose --profile four up -d
 #
 # CLI access per instance (examples):
-#   docker compose -f docker-compose.multi.yml run --rm openclaw-1-cli doctor
-#   docker compose -f docker-compose.multi.yml run --rm openclaw-2-cli gateway restart
+#   docker compose run --rm openclaw-1-cli doctor
+#   docker compose run --rm openclaw-2-cli gateway restart
 #
 # Stop all:
-#   docker compose -f docker-compose.multi.yml --profile three --profile four down
+#   docker compose --profile three --profile four down
 #
 # Prerequisites:
-#   - Create data directories and .env files before first run (see README below)
+#   - Create data directories and .env files before first run (see README.md)
 #   - Run onboarding per instance:
-#       docker compose -f docker-compose.multi.yml run --rm openclaw-1-cli onboard
-#       docker compose -f docker-compose.multi.yml run --rm openclaw-2-cli onboard
+#       docker compose run --rm openclaw-1-cli onboard
+#       docker compose run --rm openclaw-2-cli onboard
 #
 # Data directories (create these on your host):
 #   ./data/instance-1/    maps to ~/.openclaw in openclaw-1

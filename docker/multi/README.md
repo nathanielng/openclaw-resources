@@ -49,7 +49,7 @@ Use a different `OPENCLAW_GATEWAY_TOKEN` per instance so they can't be confused.
 ### 3. Pull the image
 
 ```bash
-docker compose -f docker-compose.multi.yml pull
+docker compose pull
 ```
 
 ### 4. Run the onboarding wizard per instance
@@ -58,44 +58,44 @@ Each instance needs its own onboarding (chooses model, configures channels, etc.
 
 ```bash
 # Instance 1
-docker compose -f docker-compose.multi.yml run --rm openclaw-1-cli onboard
+docker compose run --rm openclaw-1-cli onboard
 
 # Instance 2
-docker compose -f docker-compose.multi.yml run --rm openclaw-2-cli onboard
+docker compose run --rm openclaw-2-cli onboard
 
 # Instance 3 (only if running 3 or 4)
-docker compose -f docker-compose.multi.yml --profile three run --rm openclaw-3-cli onboard
+docker compose --profile three run --rm openclaw-3-cli onboard
 
 # Instance 4 (only if running 4)
-docker compose -f docker-compose.multi.yml --profile four run --rm openclaw-4-cli onboard
+docker compose --profile four run --rm openclaw-4-cli onboard
 ```
 
 For headless/non-interactive setup:
 ```bash
-docker compose -f docker-compose.multi.yml run --rm openclaw-1-cli onboard --non-interactive
+docker compose run --rm openclaw-1-cli onboard --non-interactive
 ```
 
 ### 5. Start the containers
 
 ```bash
 # 2 containers (instances 1 and 2)
-docker compose -f docker-compose.multi.yml up -d
+docker compose up -d
 
 # 3 containers
-docker compose -f docker-compose.multi.yml --profile three up -d
+docker compose --profile three up -d
 
 # 4 containers
-docker compose -f docker-compose.multi.yml --profile four up -d
+docker compose --profile four up -d
 ```
 
 ### 6. Verify
 
 ```bash
-docker compose -f docker-compose.multi.yml ps
+docker compose ps
 
 # Health check each instance
-docker compose -f docker-compose.multi.yml run --rm openclaw-1-cli doctor
-docker compose -f docker-compose.multi.yml run --rm openclaw-2-cli doctor
+docker compose run --rm openclaw-1-cli doctor
+docker compose run --rm openclaw-2-cli doctor
 ```
 
 ---
@@ -117,29 +117,29 @@ All standard OpenClaw CLI commands work — just target the right service:
 
 ```bash
 # Tail logs
-docker compose -f docker-compose.multi.yml logs -f openclaw-1
-docker compose -f docker-compose.multi.yml logs -f openclaw-2
+docker compose logs -f openclaw-1
+docker compose logs -f openclaw-2
 
 # Restart a gateway
-docker compose -f docker-compose.multi.yml run --rm openclaw-1-cli gateway restart
+docker compose run --rm openclaw-1-cli gateway restart
 
 # Switch model on instance 2
-docker compose -f docker-compose.multi.yml run --rm openclaw-2-cli models set anthropic/claude-opus-4-6
+docker compose run --rm openclaw-2-cli models set anthropic/claude-opus-4-6
 
 # Check channels on instance 3
-docker compose -f docker-compose.multi.yml --profile three run --rm openclaw-3-cli channels status --probe
+docker compose --profile three run --rm openclaw-3-cli channels status --probe
 
 # Security audit on instance 1
-docker compose -f docker-compose.multi.yml run --rm openclaw-1-cli security audit --deep
+docker compose run --rm openclaw-1-cli security audit --deep
 ```
 
 Tip — create shell aliases to reduce typing:
 
 ```bash
-alias oc1="docker compose -f docker-compose.multi.yml run --rm openclaw-1-cli"
-alias oc2="docker compose -f docker-compose.multi.yml run --rm openclaw-2-cli"
-alias oc3="docker compose -f docker-compose.multi.yml --profile three run --rm openclaw-3-cli"
-alias oc4="docker compose -f docker-compose.multi.yml --profile four run --rm openclaw-4-cli"
+alias oc1="docker compose run --rm openclaw-1-cli"
+alias oc2="docker compose run --rm openclaw-2-cli"
+alias oc3="docker compose --profile three run --rm openclaw-3-cli"
+alias oc4="docker compose --profile four run --rm openclaw-4-cli"
 
 oc1 doctor
 oc2 logs --follow
@@ -152,10 +152,10 @@ oc3 gateway restart
 
 ```bash
 # Stop all running instances (adjust profiles to match what you started)
-docker compose -f docker-compose.multi.yml --profile three --profile four down
+docker compose --profile three --profile four down
 
 # Stop just instance 2
-docker compose -f docker-compose.multi.yml stop openclaw-2
+docker compose stop openclaw-2
 ```
 
 ---
@@ -163,8 +163,8 @@ docker compose -f docker-compose.multi.yml stop openclaw-2
 ## Updating
 
 ```bash
-docker compose -f docker-compose.multi.yml pull
-docker compose -f docker-compose.multi.yml --profile four up -d --force-recreate
+docker compose pull
+docker compose --profile four up -d --force-recreate
 ```
 
 ---

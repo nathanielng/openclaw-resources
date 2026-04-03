@@ -71,7 +71,7 @@ OPENCLAW_GATEWAY_TOKEN=change-me-instance-1
 TZ=America/New_York
 ```
 
-You can also set the OpenRouter key and model via Mission Control's **Config &amp; Launch → API Keys** panel instead of editing `.env` files by hand.
+You can also set the OpenRouter key and model via Mission Control's **Config & Launch → API Keys** panel instead of editing `.env` files by hand.
 
 Use a different `OPENCLAW_GATEWAY_TOKEN` per instance so they can't be confused.
 
@@ -166,55 +166,55 @@ Append `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` to each instance's `.env`:
 
 ```bash
 # Instance 1
-echo 'OPENROUTER_API_KEY="sk-or-..."' >> data/instance-1/.env
-echo 'OPENROUTER_MODEL="minimax/minimax-m2.7"' >> data/instance-1/.env
+echo OPENROUTER_API_KEY=sk-or-... >> data/instance-1/.env
+echo OPENROUTER_MODEL=minimax/minimax-m2.7 >> data/instance-1/.env
 
 # Instance 2
-echo 'OPENROUTER_API_KEY="sk-or-..."' >> data/instance-2/.env
-echo 'OPENROUTER_MODEL="minimax/minimax-m2.7"' >> data/instance-2/.env
+echo OPENROUTER_API_KEY=sk-or-... >> data/instance-2/.env
+echo OPENROUTER_MODEL=minimax/minimax-m2.7 >> data/instance-2/.env
 
 # Instance 3
-echo 'OPENROUTER_API_KEY="sk-or-..."' >> data/instance-3/.env
-echo 'OPENROUTER_MODEL="minimax/minimax-m2.7"' >> data/instance-3/.env
+echo OPENROUTER_API_KEY=sk-or-... >> data/instance-3/.env
+echo OPENROUTER_MODEL=minimax/minimax-m2.7 >> data/instance-3/.env
 
 # Instance 4
-echo 'OPENROUTER_API_KEY="sk-or-..."' >> data/instance-4/.env
-echo 'OPENROUTER_MODEL="minimax/minimax-m2.7"' >> data/instance-4/.env
+echo OPENROUTER_API_KEY=sk-or-... >> data/instance-4/.env
+echo OPENROUTER_MODEL=minimax/minimax-m2.7 >> data/instance-4/.env
 ```
 
 Alternatively, use Mission Control's **Config & Launch → API Keys** panel to write `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` to all instances at once without touching the command line.
 
 ### 2. Register the provider in `openclaw.json` and set the active model
 
-Each instance needs the OpenRouter provider block written into its `openclaw.json`, and the active model set. Run the following for each instance (the containers must be running first):
+Each instance needs the OpenRouter provider block written into its `openclaw.json`, and the active model set. The CLI services share the network of the main instance container, so **each main instance must be running** before you run the commands for it.
 
 ```bash
 # Instance 1
 docker compose run --rm openclaw-1-cli config set models.providers.openrouter.baseUrl "https://openrouter.ai/api/v1"
 docker compose run --rm openclaw-1-cli config set models.providers.openrouter.apiKey '${OPENROUTER_API_KEY}'
 docker compose run --rm openclaw-1-cli config set models.providers.openrouter.api "openai-completions"
-docker compose run --rm openclaw-1-cli models set ${OPENROUTER_MODEL}
+docker compose run --rm openclaw-1-cli models set openrouter/minimax/minimax-m2.7
 
 # Instance 2
 docker compose run --rm openclaw-2-cli config set models.providers.openrouter.baseUrl "https://openrouter.ai/api/v1"
 docker compose run --rm openclaw-2-cli config set models.providers.openrouter.apiKey '${OPENROUTER_API_KEY}'
 docker compose run --rm openclaw-2-cli config set models.providers.openrouter.api "openai-completions"
-docker compose run --rm openclaw-2-cli models set ${OPENROUTER_MODEL}
+docker compose run --rm openclaw-2-cli models set openrouter/minimax/minimax-m2.7
 
 # Instance 3 (only if running with --profile three or --profile four)
 docker compose --profile three run --rm openclaw-3-cli config set models.providers.openrouter.baseUrl "https://openrouter.ai/api/v1"
 docker compose --profile three run --rm openclaw-3-cli config set models.providers.openrouter.apiKey '${OPENROUTER_API_KEY}'
 docker compose --profile three run --rm openclaw-3-cli config set models.providers.openrouter.api "openai-completions"
-docker compose --profile three run --rm openclaw-3-cli models set ${OPENROUTER_MODEL}
+docker compose --profile three run --rm openclaw-3-cli models set openrouter/minimax/minimax-m2.7
 
 # Instance 4 (only if running with --profile four)
 docker compose --profile four run --rm openclaw-4-cli config set models.providers.openrouter.baseUrl "https://openrouter.ai/api/v1"
 docker compose --profile four run --rm openclaw-4-cli config set models.providers.openrouter.apiKey '${OPENROUTER_API_KEY}'
 docker compose --profile four run --rm openclaw-4-cli config set models.providers.openrouter.api "openai-completions"
-docker compose --profile four run --rm openclaw-4-cli models set ${OPENROUTER_MODEL}
+docker compose --profile four run --rm openclaw-4-cli models set openrouter/minimax/minimax-m2.7
 ```
 
-> **Note:** `${OPENROUTER_API_KEY}` and `${OPENROUTER_MODEL}` are literal strings in `openclaw.json` — OpenClaw expands them at runtime from the container's environment (set via `env_file` in `docker-compose.yml`). The single quotes in the `apiKey` command prevent your shell from expanding them early.
+> **Note:** `${OPENROUTER_API_KEY}` is a literal string stored in `openclaw.json` — OpenClaw expands it at runtime from the container's environment (loaded from `data/instance-N/.env` via `env_file` in `docker-compose.yml`). The single quotes in the `apiKey` command prevent your shell from expanding it early. Replace `openrouter/minimax/minimax-m2.7` with any model slug from [openrouter.ai/models](https://openrouter.ai/models).
 
 ### 3. Verify
 

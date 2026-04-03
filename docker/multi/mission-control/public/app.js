@@ -140,6 +140,7 @@ function renderFleet() {
       <div class="agent-actions">
         <button class="btn btn-success btn-sm btn-start-instance" data-id="${id}" ${running ? 'disabled' : ''}>▶ Start</button>
         <button class="btn btn-danger  btn-sm btn-stop-instance"  data-id="${id}" ${!running ? 'disabled' : ''}>■ Stop</button>
+        <button class="btn btn-ghost   btn-sm btn-ping-instance"  data-id="${id}" title="Ping now">↻</button>
       </div>
     `;
     grid.appendChild(card);
@@ -169,6 +170,21 @@ function renderFleet() {
       } catch (err) {
         toast('Stop failed: ' + err.message, 'error');
         btn.disabled = false;
+      }
+    });
+  });
+
+  grid.querySelectorAll('.btn-ping-instance').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = '…';
+      try {
+        await api('POST', `/api/health/poll/${btn.dataset.id}`);
+        // health update arrives via WebSocket → renderFleet() restores the button
+      } catch (err) {
+        toast('Ping failed: ' + err.message, 'error');
+        btn.disabled = false;
+        btn.textContent = '↻';
       }
     });
   });
@@ -435,6 +451,22 @@ function updatePairingBadge() {
     badge.classList.add('hidden');
   }
 }
+
+// Ping All button (Fleet tab)
+document.getElementById('btn-ping-all').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  btn.textContent = '↻ Pinging…';
+  try {
+    await api('POST', '/api/health/poll');
+    // health update arrives via WebSocket → onHealth() → renderFleet()
+  } catch (err) {
+    toast('Ping failed: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↻ Ping All';
+  }
+});
 
 // ── Config & Launch ────────────────────────────────────────────────────────
 

@@ -448,6 +448,21 @@ app.delete('/api/kanban/items/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+// Manual health poll — trigger an immediate check and broadcast the result
+app.post('/api/health/poll', async (_req, res) => {
+  await Promise.all(INSTANCES.map(inst => pollHealth(inst)));
+  broadcast({ type: 'health', payload: healthState });
+  res.json({ ok: true, health: healthState });
+});
+
+app.post('/api/health/poll/:id', async (req, res) => {
+  const inst = INSTANCES.find(i => i.id === parseInt(req.params.id));
+  if (!inst) return res.status(404).json({ error: 'Unknown instance' });
+  await pollHealth(inst);
+  broadcast({ type: 'health', payload: healthState });
+  res.json({ ok: true, health: healthState[inst.id] });
+});
+
 // Cost state
 app.get('/api/cost', (_req, res) => res.json(costState));
 

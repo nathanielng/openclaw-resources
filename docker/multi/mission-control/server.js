@@ -261,6 +261,17 @@ function getProfiles(count) {
   return profiles;
 }
 
+// Returns the container's State.Status ('running', 'exited', …) or null if it doesn't exist.
+function getContainerStatus(name) {
+  return new Promise((resolve) => {
+    const proc = spawn('docker', ['inspect', '--format', '{{.State.Status}}', name]);
+    let out = '';
+    proc.stdout.on('data', d => { out += d.toString(); });
+    proc.on('exit', code => resolve(code === 0 ? out.trim() : null));
+    proc.on('error', () => resolve(null));
+  });
+}
+
 function runCompose(args, res) {
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
   res.setHeader('Transfer-Encoding', 'chunked');
@@ -289,15 +300,54 @@ app.post('/api/compose/up', (req, res) => {
   const count = Math.min(4, Math.max(2, parseInt(req.body.count) || 2));
   const profiles = getProfiles(count);
   const profileArgs = profiles.flatMap(p => ['--profile', p]);
-  runCompose([...profileArgs, 'up', '-d'], res);
+  // --no-recreate: skip containers that are already running instead of conflicting on their names
+  runCompose([...profileArgs, 'up', '-d', '--no-recreate'], res);
 });
 
 // Start a single instance
-app.post('/api/compose/up/:id', (req, res) => {
+app.post('/api/compose/up/:id', async (req, res) => {
   const inst = INSTANCES.find(i => i.id === parseInt(req.params.id));
   if (!inst) return res.status(404).end('Unknown instance');
+
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Transfer-Encoding', 'chunked');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+
+  // Check if the container is already running to avoid a name-conflict error.
+  const status = await getContainerStatus(inst.name);
+  if (status === 'running') {
+    res.write(`Container ${inst.name} is already running — nothing to do.\n`);
+    res.write('\n[exit 0]\n');
+    return res.end();
+  }
+
+  // For profile-gated instances (3 & 4) the data directory must already exist on
+  // the host.  When compose runs inside mission-control it resolves "./data/instance-N"
+  // relative to the compose file as "/workspace/data/instance-N", and Docker mounts
+  // that path from the HOST — so if the directory is absent you get a "mounts denied"
+  // or "path not found" error.  Detect this early and surface a clear message.
+  if (inst.profile) {
+    const dataDir = path.join(DATA_DIR, `instance-${inst.id}`);
+    if (!fs.existsSync(dataDir)) {
+      res.write(`Error: data directory for instance-${inst.id} not found at ${dataDir}.\n`);
+      res.write(`Please create ./data/instance-${inst.id}/ on the host (and add a .env file)\n`);
+      res.write(`before starting this container.\n`);
+      res.write('\n[exit 1]\n');
+      return res.end();
+    }
+  }
+
   const profileArgs = inst.profile ? ['--profile', inst.profile] : [];
-  runCompose([...profileArgs, 'up', '-d', inst.name], res);
+  // --no-recreate: if the container exists but is stopped, start it; never conflict on an existing name
+  const proc = spawn('docker', ['compose', '-f', COMPOSE_FILE, ...profileArgs, 'up', '-d', '--no-recreate', inst.name], {
+    cwd: COMPOSE_PROJECT_DIR,
+    env: { ...process.env },
+  });
+
+  proc.stdout.on('data', d => res.write(d));
+  proc.stderr.on('data', d => res.write(d));
+  proc.on('exit', code => { res.write(`\n[exit ${code}]\n`); res.end(); });
+  proc.on('error', e => { res.write(`[error: ${e.message}]\n`); res.end(); });
 });
 
 // Stop a single instance

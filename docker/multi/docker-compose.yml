@@ -33,6 +33,12 @@
 #   Instance 3:  18791  (profile: three)
 #   Instance 4:  18792  (profile: four)
 
+# Explicit project name so Docker Compose uses the same name regardless of the
+# working directory — this prevents name-conflict errors when mission-control
+# runs compose commands from inside the container (where the file is mounted
+# at /workspace and would otherwise derive the project name "workspace").
+name: openclaw-multi
+
 services:
 
   # ── Instance 1 ────────────────────────────────────────────────────────────

@@ -292,6 +292,21 @@ app.post('/api/compose/up', (req, res) => {
   runCompose([...profileArgs, 'up', '-d'], res);
 });
 
+// Start a single instance
+app.post('/api/compose/up/:id', (req, res) => {
+  const inst = INSTANCES.find(i => i.id === parseInt(req.params.id));
+  if (!inst) return res.status(404).end('Unknown instance');
+  const profileArgs = inst.profile ? ['--profile', inst.profile] : [];
+  runCompose([...profileArgs, 'up', '-d', inst.name], res);
+});
+
+// Stop a single instance
+app.post('/api/compose/stop/:id', (req, res) => {
+  const inst = INSTANCES.find(i => i.id === parseInt(req.params.id));
+  if (!inst) return res.status(404).end('Unknown instance');
+  runCompose(['stop', inst.name], res);
+});
+
 // Compose down
 app.post('/api/compose/down', (_req, res) => {
   runCompose(['--profile', 'three', '--profile', 'four', 'down'], res);

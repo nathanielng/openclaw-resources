@@ -109,10 +109,21 @@ For headless/non-interactive setup:
 docker compose run --rm openclaw-1-cli onboard --non-interactive
 ```
 
-### 7. Start the containers
+### 7. Start Mission Control, then launch instances from the UI
+
+You can start Mission Control on its own first, then use its web UI to bring up each OpenClaw instance individually:
 
 ```bash
-# 2 containers (instances 1 and 2) + mission control
+# Start only Mission Control
+docker compose up -d mission-control
+```
+
+Open **http://localhost:4000**, go to the **Fleet** tab, and click **▶ Start** on each instance card. The output streams inline so you can see what Docker is doing.
+
+Alternatively, start everything from the command line in one go:
+
+```bash
+# 2 containers + mission control
 docker compose up -d
 
 # 3 containers + mission control
@@ -122,7 +133,7 @@ docker compose --profile three up -d
 docker compose --profile four up -d
 ```
 
-Mission Control is available at **http://localhost:4000** once the stack is up. Use it to paste API keys, launch/stop the fleet, monitor health, and view live logs — without touching the command line.
+Mission Control is available at **http://localhost:4000**. Use it to paste API keys, launch/stop individual containers, monitor health, and view live logs — without touching the command line.
 
 ### 8. Verify
 

@@ -104,6 +104,7 @@ function renderFleet() {
     const model = (h.data && h.data.model) || (costData[id] && costData[id].model) || '—';
     const today = new Date().toISOString().slice(0, 10);
     const dailyCost = costData[id] ? (costData[id].daily && costData[id].daily[today]) || 0 : 0;
+    const running = status === 'healthy' || status === 'degraded';
 
     const card = document.createElement('div');
     card.className = 'agent-card';
@@ -136,8 +137,40 @@ function renderFleet() {
           </div>
         </div>
       </div>
+      <div class="agent-actions">
+        <button class="btn btn-success btn-sm btn-start-instance" data-id="${id}" ${running ? 'disabled' : ''}>▶ Start</button>
+        <button class="btn btn-danger  btn-sm btn-stop-instance"  data-id="${id}" ${!running ? 'disabled' : ''}>■ Stop</button>
+      </div>
     `;
     grid.appendChild(card);
+  });
+
+  // Wire per-instance buttons
+  const out = document.getElementById('fleet-compose-output');
+  grid.querySelectorAll('.btn-start-instance').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try {
+        await streamingPost(`/api/compose/up/${btn.dataset.id}`, {}, out);
+        toast(`Instance ${btn.dataset.id} starting…`, 'success');
+      } catch (err) {
+        toast('Start failed: ' + err.message, 'error');
+        btn.disabled = false;
+      }
+    });
+  });
+
+  grid.querySelectorAll('.btn-stop-instance').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try {
+        await streamingPost(`/api/compose/stop/${btn.dataset.id}`, {}, out);
+        toast(`Instance ${btn.dataset.id} stopped`, 'info');
+      } catch (err) {
+        toast('Stop failed: ' + err.message, 'error');
+        btn.disabled = false;
+      }
+    });
   });
 }
 

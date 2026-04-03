@@ -19,7 +19,7 @@
 | [`docker/single/docker-compose.yml`](docker/single/docker-compose.yml) | Single-container setup — one OpenClaw gateway + CLI service |
 | [`docker/multi/docker-compose.yml`](docker/multi/docker-compose.yml) | Multi-container setup — 2, 3, or 4 independent instances via Compose profiles |
 | [`docker/multi/README.md`](docker/multi/README.md) | Step-by-step guide for the multi-container setup |
-| [`docker/multi/mission-control/`](docker/multi/mission-control/) | Mission control dashboard (Node.js) — fleet health, Kanban, live logs, cost tracker, pairing approvals |
+| [`docker/multi/mission-control/`](docker/multi/mission-control/) | Mission control dashboard (Node.js) — fleet health, Kanban, live logs, cost tracker, pairing approvals, API key setup (including OpenRouter key and model) |
 
 **Single container** (one agent, port 18789):
 ```bash

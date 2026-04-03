@@ -545,11 +545,13 @@ document.getElementById('btn-pull').addEventListener('click', async (e) => {
 
 // API Keys
 document.getElementById('btn-save-keys').addEventListener('click', async () => {
-  const anthropicKey = document.getElementById('key-anthropic').value.trim();
-  const gatewayToken = document.getElementById('key-gateway').value.trim();
-  const openaiKey    = document.getElementById('key-openai').value.trim();
+  const anthropicKey     = document.getElementById('key-anthropic').value.trim();
+  const gatewayToken     = document.getElementById('key-gateway').value.trim();
+  const openaiKey        = document.getElementById('key-openai').value.trim();
+  const openrouterKey    = document.getElementById('key-openrouter').value.trim();
+  const openrouterModel  = document.getElementById('key-openrouter-model').value.trim();
 
-  if (!anthropicKey && !gatewayToken && !openaiKey) {
+  if (!anthropicKey && !gatewayToken && !openaiKey && !openrouterKey && !openrouterModel) {
     toast('Enter at least one key', 'error');
     return;
   }
@@ -564,12 +566,14 @@ document.getElementById('btn-save-keys').addEventListener('click', async () => {
   }
 
   try {
-    await api('POST', '/api/config/keys', { anthropicKey, gatewayToken, openaiKey, instances });
+    await api('POST', '/api/config/keys', { anthropicKey, gatewayToken, openaiKey, openrouterKey, openrouterModel, instances });
     toast(`Keys saved to ${instances.length} instance(s)`, 'success');
     // Clear fields after save
     document.getElementById('key-anthropic').value = '';
     document.getElementById('key-gateway').value = '';
     document.getElementById('key-openai').value = '';
+    document.getElementById('key-openrouter').value = '';
+    document.getElementById('key-openrouter-model').value = '';
     loadKeyPreview();
   } catch (err) {
     toast('Save failed: ' + err.message, 'error');

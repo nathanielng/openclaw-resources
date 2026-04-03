@@ -304,7 +304,7 @@ app.post('/api/compose/pull', (_req, res) => {
 
 // Save API keys
 app.post('/api/config/keys', (req, res) => {
-  const { anthropicKey, gatewayToken, openaiKey, instances } = req.body;
+  const { anthropicKey, gatewayToken, openaiKey, telegramTokens, instances } = req.body;
   const targets = (instances && instances.length) ? instances : [1, 2, 3, 4];
 
   targets.forEach(id => {
@@ -315,6 +315,15 @@ app.post('/api/config/keys', (req, res) => {
     if (openaiKey)    vars.OPENAI_API_KEY = openaiKey;
     mergeEnvFile(envPath, vars);
   });
+
+  // Telegram tokens are per-instance — each bot can only connect to one instance
+  if (telegramTokens && typeof telegramTokens === 'object') {
+    Object.entries(telegramTokens).forEach(([id, token]) => {
+      if (!token) return;
+      const envPath = path.join(DATA_DIR, `instance-${id}`, '.env');
+      mergeEnvFile(envPath, { TELEGRAM_BOT_TOKEN: token });
+    });
+  }
 
   res.json({ ok: true, updated: targets });
 });

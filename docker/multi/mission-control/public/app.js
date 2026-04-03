@@ -513,6 +513,30 @@ document.getElementById('btn-save-keys').addEventListener('click', async () => {
 
 document.getElementById('btn-refresh-keys').addEventListener('click', loadKeyPreview);
 
+// Telegram tokens (per-instance)
+document.getElementById('btn-save-tg').addEventListener('click', async () => {
+  const tokens = {};
+  [1, 2, 3, 4].forEach(id => {
+    const val = document.getElementById(`tg-${id}`).value.trim();
+    if (val) tokens[id] = val;
+  });
+
+  if (!Object.keys(tokens).length) {
+    toast('Enter at least one Telegram bot token', 'error');
+    return;
+  }
+
+  try {
+    await api('POST', '/api/config/keys', { telegramTokens: tokens });
+    const count = Object.keys(tokens).length;
+    toast(`Telegram token${count > 1 ? 's' : ''} saved to ${count} instance${count > 1 ? 's' : ''}`, 'success');
+    [1, 2, 3, 4].forEach(id => { document.getElementById(`tg-${id}`).value = ''; });
+    loadKeyPreview();
+  } catch (err) {
+    toast('Save failed: ' + err.message, 'error');
+  }
+});
+
 async function loadKeyPreview() {
   const el = document.getElementById('keys-preview');
   try {

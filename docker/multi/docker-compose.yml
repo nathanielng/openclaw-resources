@@ -190,9 +190,6 @@ services:
       - PORT=4000
     networks:
       - openclaw-net
-    depends_on:
-      - openclaw-1
-      - openclaw-2
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:4000/api/instances"]
       interval: 30s

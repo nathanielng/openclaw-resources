@@ -292,6 +292,21 @@ app.post('/api/compose/up', (req, res) => {
   runCompose([...profileArgs, 'up', '-d'], res);
 });
 
+// Start a single instance
+app.post('/api/compose/up/:id', (req, res) => {
+  const inst = INSTANCES.find(i => i.id === parseInt(req.params.id));
+  if (!inst) return res.status(404).end('Unknown instance');
+  const profileArgs = inst.profile ? ['--profile', inst.profile] : [];
+  runCompose([...profileArgs, 'up', '-d', inst.name], res);
+});
+
+// Stop a single instance
+app.post('/api/compose/stop/:id', (req, res) => {
+  const inst = INSTANCES.find(i => i.id === parseInt(req.params.id));
+  if (!inst) return res.status(404).end('Unknown instance');
+  runCompose(['stop', inst.name], res);
+});
+
 // Compose down
 app.post('/api/compose/down', (_req, res) => {
   runCompose(['--profile', 'three', '--profile', 'four', 'down'], res);
@@ -304,7 +319,7 @@ app.post('/api/compose/pull', (_req, res) => {
 
 // Save API keys
 app.post('/api/config/keys', (req, res) => {
-  const { anthropicKey, gatewayToken, openaiKey, instances } = req.body;
+  const { anthropicKey, gatewayToken, openaiKey, telegramTokens, instances } = req.body;
   const targets = (instances && instances.length) ? instances : [1, 2, 3, 4];
 
   targets.forEach(id => {
@@ -315,6 +330,15 @@ app.post('/api/config/keys', (req, res) => {
     if (openaiKey)    vars.OPENAI_API_KEY = openaiKey;
     mergeEnvFile(envPath, vars);
   });
+
+  // Telegram tokens are per-instance — each bot can only connect to one instance
+  if (telegramTokens && typeof telegramTokens === 'object') {
+    Object.entries(telegramTokens).forEach(([id, token]) => {
+      if (!token) return;
+      const envPath = path.join(DATA_DIR, `instance-${id}`, '.env');
+      mergeEnvFile(envPath, { TELEGRAM_BOT_TOKEN: token });
+    });
+  }
 
   res.json({ ok: true, updated: targets });
 });

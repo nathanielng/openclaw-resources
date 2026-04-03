@@ -30,6 +30,7 @@
       <span class="text-muted text-sm" id="fleet-updated"></span>
     </div>
     <div class="fleet-grid" id="fleet-grid"></div>
+    <pre class="compose-output" id="fleet-compose-output"></pre>
   </section>
 
   <!-- ── Kanban ─────────────────────────────────────────────────────────── -->
@@ -212,6 +213,32 @@
           </div>
         </div>
         <button class="btn btn-primary" id="btn-save-keys">Save Keys</button>
+      </div>
+
+      <div class="config-card">
+        <h3>Telegram Bot Tokens</h3>
+        <p class="text-muted text-sm" style="margin-bottom:12px">
+          Each instance connects to its own Telegram bot. Tokens are written directly to each
+          instance's <code style="font-family:var(--font-mono)">.env</code> file and persist
+          between sessions. Leave a field blank to leave that instance's token unchanged.
+        </p>
+        <div class="form-group">
+          <label>Instance 1 — Research</label>
+          <input type="password" id="tg-1" placeholder="1234567890:ABCdef…" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>Instance 2 — Coding</label>
+          <input type="password" id="tg-2" placeholder="1234567890:ABCdef…" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>Instance 3 — Comms</label>
+          <input type="password" id="tg-3" placeholder="1234567890:ABCdef…" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>Instance 4 — Ops</label>
+          <input type="password" id="tg-4" placeholder="1234567890:ABCdef…" autocomplete="off">
+        </div>
+        <button class="btn btn-primary" id="btn-save-tg">Save Telegram Tokens</button>
       </div>
 
       <div class="config-card">

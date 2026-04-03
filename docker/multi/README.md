@@ -109,10 +109,21 @@ For headless/non-interactive setup:
 docker compose run --rm openclaw-1-cli onboard --non-interactive
 ```
 
-### 7. Start the containers
+### 7. Start Mission Control, then launch instances from the UI
+
+You can start Mission Control on its own first, then use its web UI to bring up each OpenClaw instance individually:
 
 ```bash
-# 2 containers (instances 1 and 2) + mission control
+# Start only Mission Control
+docker compose up -d mission-control
+```
+
+Open **http://localhost:4000**, go to the **Fleet** tab, and click **▶ Start** on each instance card. The output streams inline so you can see what Docker is doing.
+
+Alternatively, start everything from the command line in one go:
+
+```bash
+# 2 containers + mission control
 docker compose up -d
 
 # 3 containers + mission control
@@ -122,7 +133,7 @@ docker compose --profile three up -d
 docker compose --profile four up -d
 ```
 
-Mission Control is available at **http://localhost:4000** once the stack is up. Use it to paste API keys, launch/stop the fleet, monitor health, and view live logs — without touching the command line.
+Mission Control is available at **http://localhost:4000**. Use it to paste API keys, launch/stop individual containers, monitor health, and view live logs — without touching the command line.
 
 ### 8. Verify
 
@@ -132,6 +143,74 @@ docker compose ps
 # Health check each instance
 docker compose run --rm openclaw-1-cli doctor
 docker compose run --rm openclaw-2-cli doctor
+```
+
+---
+
+## Telegram API Key
+
+Each instance that uses a Telegram channel needs its own bot token (`TELEGRAM_BOT_TOKEN`). A Telegram bot can only be connected to one instance at a time.
+
+### Set the key for one instance at a time
+
+Append the key to the `.env` file for whichever instance you want to connect to Telegram:
+
+```bash
+# Instance 1
+echo "TELEGRAM_BOT_TOKEN=your-token-here" >> data/instance-1/.env
+
+# Instance 2
+echo "TELEGRAM_BOT_TOKEN=your-token-here" >> data/instance-2/.env
+
+# Instance 3
+echo "TELEGRAM_BOT_TOKEN=your-token-here" >> data/instance-3/.env
+
+# Instance 4
+echo "TELEGRAM_BOT_TOKEN=your-token-here" >> data/instance-4/.env
+```
+
+If the `.env` file does not exist yet, create it first (see Step 3 of Quick Start), or use the same `echo` command — it will create the file if absent.
+
+To verify the key was written:
+
+```bash
+grep TELEGRAM_BOT_TOKEN data/instance-1/.env
+```
+
+### Set the key for all 4 instances at once
+
+If you have four separate bot tokens (one per instance), export them as shell variables and write them all in one go:
+
+```bash
+TOKEN1=your-token-for-instance-1
+TOKEN2=your-token-for-instance-2
+TOKEN3=your-token-for-instance-3
+TOKEN4=your-token-for-instance-4
+
+echo "TELEGRAM_BOT_TOKEN=${TOKEN1}" >> data/instance-1/.env
+echo "TELEGRAM_BOT_TOKEN=${TOKEN2}" >> data/instance-2/.env
+echo "TELEGRAM_BOT_TOKEN=${TOKEN3}" >> data/instance-3/.env
+echo "TELEGRAM_BOT_TOKEN=${TOKEN4}" >> data/instance-4/.env
+```
+
+Or as a single command using a loop (replace each token value inline):
+
+```bash
+declare -A TOKENS=(
+  [1]="your-token-for-instance-1"
+  [2]="your-token-for-instance-2"
+  [3]="your-token-for-instance-3"
+  [4]="your-token-for-instance-4"
+)
+for i in 1 2 3 4; do
+  echo "TELEGRAM_BOT_TOKEN=${TOKENS[$i]}" >> data/instance-$i/.env
+done
+```
+
+After updating any `.env` file, restart the affected instance for the change to take effect:
+
+```bash
+docker compose restart openclaw-1   # or whichever instance was updated
 ```
 
 ---

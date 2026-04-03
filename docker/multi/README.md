@@ -66,9 +66,12 @@ Each instance must have its own `data/instance-N/.env`. Copy and edit:
 ANTHROPIC_API_KEY=sk-ant-...
 # OPENAI_API_KEY=sk-...
 # OPENROUTER_API_KEY=sk-or-...
+# OPENROUTER_MODEL=google/gemini-2.0-flash-exp
 OPENCLAW_GATEWAY_TOKEN=change-me-instance-1
 TZ=America/New_York
 ```
+
+You can also set the OpenRouter key and model via Mission Control's **Config &amp; Launch → API Keys** panel instead of editing `.env` files by hand.
 
 Use a different `OPENCLAW_GATEWAY_TOKEN` per instance so they can't be confused.
 
@@ -135,7 +138,7 @@ docker compose --profile three up -d
 docker compose --profile four up -d
 ```
 
-Mission Control is available at **http://localhost:4000**. Use it to paste API keys, launch/stop individual containers, monitor health, view live logs, and ping containers on demand — without touching the command line.
+Mission Control is available at **http://localhost:4000**. Use it to paste API keys (including your OpenRouter API key and model), launch/stop individual containers, monitor health, view live logs, and ping containers on demand — without touching the command line.
 
 ### 8. Verify
 

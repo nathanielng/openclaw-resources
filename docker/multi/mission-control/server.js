@@ -369,15 +369,17 @@ app.post('/api/compose/pull', (_req, res) => {
 
 // Save API keys
 app.post('/api/config/keys', (req, res) => {
-  const { anthropicKey, gatewayToken, openaiKey, telegramTokens, instances } = req.body;
+  const { anthropicKey, gatewayToken, openaiKey, openrouterKey, openrouterModel, telegramTokens, instances } = req.body;
   const targets = (instances && instances.length) ? instances : [1, 2, 3, 4];
 
   targets.forEach(id => {
     const envPath = path.join(DATA_DIR, `instance-${id}`, '.env');
     const vars = {};
-    if (anthropicKey) vars.ANTHROPIC_API_KEY = anthropicKey;
-    if (gatewayToken) vars.OPENCLAW_GATEWAY_TOKEN = gatewayToken;
-    if (openaiKey)    vars.OPENAI_API_KEY = openaiKey;
+    if (anthropicKey)    vars.ANTHROPIC_API_KEY       = anthropicKey;
+    if (gatewayToken)    vars.OPENCLAW_GATEWAY_TOKEN  = gatewayToken;
+    if (openaiKey)       vars.OPENAI_API_KEY          = openaiKey;
+    if (openrouterKey)   vars.OPENROUTER_API_KEY      = openrouterKey;
+    if (openrouterModel) vars.OPENROUTER_MODEL        = openrouterModel;
     mergeEnvFile(envPath, vars);
   });
 

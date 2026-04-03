@@ -120,6 +120,8 @@ docker compose up -d mission-control
 
 Open **http://localhost:4000**, go to the **Fleet** tab, and click **▶ Start** on each instance card. The output streams inline so you can see what Docker is doing.
 
+> **Note:** Before starting instances 3 or 4 via Mission Control, make sure their data directories already exist on the host (see Step 2). If they are missing, Mission Control will display a clear error rather than letting Docker produce a cryptic "mounts denied" message. Clicking **▶ Start** on an instance that is already running is also safe — Mission Control detects this and skips the launch rather than returning a name-conflict error.
+
 Alternatively, start everything from the command line in one go:
 
 ```bash
@@ -133,9 +135,13 @@ docker compose --profile three up -d
 docker compose --profile four up -d
 ```
 
-Mission Control is available at **http://localhost:4000**. Use it to paste API keys, launch/stop individual containers, monitor health, and view live logs — without touching the command line.
+Mission Control is available at **http://localhost:4000**. Use it to paste API keys, launch/stop individual containers, monitor health, view live logs, and ping containers on demand — without touching the command line.
 
 ### 8. Verify
+
+In Mission Control's **Fleet** tab, click **↻ Ping All** to trigger an immediate health check across all running instances. Each card shows its current status (`healthy`, `degraded`, `unreachable`) and the time of the last check. You can also click the **↻** button on an individual card to ping just that instance.
+
+Alternatively, from the command line:
 
 ```bash
 docker compose ps

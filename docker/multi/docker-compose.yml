@@ -22,10 +22,10 @@
 #       docker compose run --rm openclaw-2-cli onboard
 #
 # Data directories (create these on your host):
-#   ./data/instance-1/    maps to ~/.openclaw in openclaw-1
-#   ./data/instance-2/    maps to ~/.openclaw in openclaw-2
-#   ./data/instance-3/    maps to ~/.openclaw in openclaw-3  (profile: three)
-#   ./data/instance-4/    maps to ~/.openclaw in openclaw-4  (profile: four)
+#   ./data/instance-1/    maps to /home/node/.openclaw in openclaw-1
+#   ./data/instance-2/    maps to /home/node/.openclaw in openclaw-2
+#   ./data/instance-3/    maps to /home/node/.openclaw in openclaw-3  (profile: three)
+#   ./data/instance-4/    maps to /home/node/.openclaw in openclaw-4  (profile: four)
 #
 # Ports:
 #   Instance 1:  18789
@@ -49,7 +49,7 @@ services:
     ports:
       - "18789:18789"
     volumes:
-      - ./data/instance-1:/root/.openclaw
+      - ./data/instance-1:/home/node/.openclaw
     env_file:
       - {path: ./data/instance-1/.env, required: false}
     environment:
@@ -68,7 +68,7 @@ services:
     profiles:
       - cli
     volumes:
-      - ./data/instance-1:/root/.openclaw
+      - ./data/instance-1:/home/node/.openclaw
     env_file:
       - {path: ./data/instance-1/.env, required: false}
     entrypoint: ["openclaw"]
@@ -82,7 +82,7 @@ services:
     ports:
       - "18790:18789"
     volumes:
-      - ./data/instance-2:/root/.openclaw
+      - ./data/instance-2:/home/node/.openclaw
     env_file:
       - {path: ./data/instance-2/.env, required: false}
     environment:
@@ -101,7 +101,7 @@ services:
     profiles:
       - cli
     volumes:
-      - ./data/instance-2:/root/.openclaw
+      - ./data/instance-2:/home/node/.openclaw
     env_file:
       - {path: ./data/instance-2/.env, required: false}
     entrypoint: ["openclaw"]
@@ -118,7 +118,7 @@ services:
     ports:
       - "18791:18789"
     volumes:
-      - ./data/instance-3:/root/.openclaw
+      - ./data/instance-3:/home/node/.openclaw
     env_file:
       - {path: ./data/instance-3/.env, required: false}
     environment:
@@ -138,7 +138,7 @@ services:
       - cli-three
       - cli-four
     volumes:
-      - ./data/instance-3:/root/.openclaw
+      - ./data/instance-3:/home/node/.openclaw
     env_file:
       - {path: ./data/instance-3/.env, required: false}
     entrypoint: ["openclaw"]
@@ -154,7 +154,7 @@ services:
     ports:
       - "18792:18789"
     volumes:
-      - ./data/instance-4:/root/.openclaw
+      - ./data/instance-4:/home/node/.openclaw
     env_file:
       - {path: ./data/instance-4/.env, required: false}
     environment:
@@ -173,7 +173,7 @@ services:
     profiles:
       - cli-four
     volumes:
-      - ./data/instance-4:/root/.openclaw
+      - ./data/instance-4:/home/node/.openclaw
     env_file:
       - {path: ./data/instance-4/.env, required: false}
     entrypoint: ["openclaw"]

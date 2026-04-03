@@ -190,31 +190,27 @@ Each instance needs the OpenRouter provider block written into its `openclaw.jso
 
 ```bash
 # Instance 1
-docker compose run --rm openclaw-1-cli config set models.providers.openrouter.baseUrl "https://openrouter.ai/api/v1"
-docker compose run --rm openclaw-1-cli config set models.providers.openrouter.apiKey '${OPENROUTER_API_KEY}'
-docker compose run --rm openclaw-1-cli config set models.providers.openrouter.api "openai-completions"
+docker compose run --rm openclaw-1-cli config set models.providers.openrouter \
+  '{"baseUrl":"https://openrouter.ai/api/v1","apiKey":"${OPENROUTER_API_KEY}","api":"openai-completions","models":["minimax/minimax-m2.7"]}'
 docker compose run --rm openclaw-1-cli models set openrouter/minimax/minimax-m2.7
 
 # Instance 2
-docker compose run --rm openclaw-2-cli config set models.providers.openrouter.baseUrl "https://openrouter.ai/api/v1"
-docker compose run --rm openclaw-2-cli config set models.providers.openrouter.apiKey '${OPENROUTER_API_KEY}'
-docker compose run --rm openclaw-2-cli config set models.providers.openrouter.api "openai-completions"
+docker compose run --rm openclaw-2-cli config set models.providers.openrouter \
+  '{"baseUrl":"https://openrouter.ai/api/v1","apiKey":"${OPENROUTER_API_KEY}","api":"openai-completions","models":["minimax/minimax-m2.7"]}'
 docker compose run --rm openclaw-2-cli models set openrouter/minimax/minimax-m2.7
 
 # Instance 3 (only if running with --profile three or --profile four)
-docker compose --profile three run --rm openclaw-3-cli config set models.providers.openrouter.baseUrl "https://openrouter.ai/api/v1"
-docker compose --profile three run --rm openclaw-3-cli config set models.providers.openrouter.apiKey '${OPENROUTER_API_KEY}'
-docker compose --profile three run --rm openclaw-3-cli config set models.providers.openrouter.api "openai-completions"
+docker compose --profile three run --rm openclaw-3-cli config set models.providers.openrouter \
+  '{"baseUrl":"https://openrouter.ai/api/v1","apiKey":"${OPENROUTER_API_KEY}","api":"openai-completions","models":["minimax/minimax-m2.7"]}'
 docker compose --profile three run --rm openclaw-3-cli models set openrouter/minimax/minimax-m2.7
 
 # Instance 4 (only if running with --profile four)
-docker compose --profile four run --rm openclaw-4-cli config set models.providers.openrouter.baseUrl "https://openrouter.ai/api/v1"
-docker compose --profile four run --rm openclaw-4-cli config set models.providers.openrouter.apiKey '${OPENROUTER_API_KEY}'
-docker compose --profile four run --rm openclaw-4-cli config set models.providers.openrouter.api "openai-completions"
+docker compose --profile four run --rm openclaw-4-cli config set models.providers.openrouter \
+  '{"baseUrl":"https://openrouter.ai/api/v1","apiKey":"${OPENROUTER_API_KEY}","api":"openai-completions","models":["minimax/minimax-m2.7"]}'
 docker compose --profile four run --rm openclaw-4-cli models set openrouter/minimax/minimax-m2.7
 ```
 
-> **Note:** `${OPENROUTER_API_KEY}` is a literal string stored in `openclaw.json` — OpenClaw expands it at runtime from the container's environment (loaded from `data/instance-N/.env` via `env_file` in `docker-compose.yml`). The single quotes in the `apiKey` command prevent your shell from expanding it early. Replace `openrouter/minimax/minimax-m2.7` with any model slug from [openrouter.ai/models](https://openrouter.ai/models).
+> **Note:** The entire provider block is written in one command because config validation runs on every `config set` call — setting fields one at a time causes a validation failure as soon as the `openrouter` key exists but the required `models` array is still absent. `${OPENROUTER_API_KEY}` is a literal string stored in `openclaw.json`; OpenClaw expands it at runtime from the container's environment. The single quotes prevent your shell from expanding it early. Replace `minimax/minimax-m2.7` with any model slug from [openrouter.ai/models](https://openrouter.ai/models) — update it in both the `models` array and the `models set` argument.
 
 ### 3. Verify
 
@@ -429,7 +425,7 @@ Each instance has independent channels, models, skills, memory, and cron jobs. A
 
 ## Volume Ownership
 
-The `data/instance-N/` directories live on your **host machine** (under `docker/multi/data/`), not inside the container. Docker mounts them into each container at `/root/.openclaw`.
+The `data/instance-N/` directories live on your **host machine** (under `docker/multi/data/`), not inside the container. Docker mounts them into each container at `/home/node/.openclaw`.
 
 OpenClaw runs as user `node` (uid 1000) inside the container. If that user lacks write access to the mounted host directories, you will see permission errors. Fix them on the host:
 
@@ -448,3 +444,60 @@ sudo chown -R 1000:1000 data/
 - Bind to `127.0.0.1` if you don't need LAN access: change port mapping to `"127.0.0.1:18789:18789"`.
 - For hardened container settings (read-only filesystem, capability drops), see [`openclaw-isolation-guide.md`](../../openclaw-isolation-guide.md).
 - Never commit `.env` files to version control.
+
+---
+
+## Troubleshooting
+
+### `docker compose run` fails with "container name already in use"
+
+**Symptom:**
+
+```
+Error response from daemon: Conflict. The container name "/openclaw-1" is already in use by container "...".
+You have to remove (or rename) that container to be able to reuse that name.
+```
+
+**Cause:**
+
+The `openclaw-1-cli` service uses `network_mode: "service:openclaw-1"`, so `docker compose run` must start `openclaw-1` as a dependency. Because `openclaw-1` has a fixed `container_name`, Docker refuses to create a second container with that name if one already exists — for example, after a previous run was interrupted before `--rm` could clean it up, or if the `run` command was issued from a different directory than the one used for `docker compose up -d` (causing Docker Compose to derive a different project name and try to recreate the service from scratch).
+
+**Fix:**
+
+1. Remove the stale container:
+
+   ```bash
+   docker rm -f openclaw-1
+   ```
+
+2. Restart the instance and retry:
+
+   ```bash
+   # Run from docker/multi/
+   docker compose up -d openclaw-1
+   docker compose run --rm openclaw-1-cli config set ...
+   ```
+
+**Prevention:** Always run all `docker compose` commands from the same directory (`docker/multi/`). The compose file sets `name: openclaw-multi` to stabilise the project name, but Docker Compose still needs a consistent working directory to recognise the already-running `openclaw-1` container as part of its project rather than attempting to create a new one.
+
+### `config set` fails with "expected array, received undefined"
+
+**Symptom:**
+
+```
+Error: Config validation failed: models.providers.openrouter.models: Invalid input: expected array, received undefined
+```
+
+**Cause:**
+
+Config validation runs on every `config set` call. The moment the `openrouter` provider key is created (e.g. by setting `baseUrl`), the schema checks the whole provider object and immediately fails because the required `models` array hasn't been set yet. Setting fields one at a time is not viable.
+
+**Fix:**
+
+Write the entire provider block in a single command so validation only runs once on a complete, valid object:
+
+```bash
+docker compose run --rm openclaw-1-cli config set models.providers.openrouter \
+  '{"baseUrl":"https://openrouter.ai/api/v1","apiKey":"${OPENROUTER_API_KEY}","api":"openai-completions","models":["minimax/minimax-m2.7"]}'
+docker compose run --rm openclaw-1-cli models set openrouter/minimax/minimax-m2.7
+```

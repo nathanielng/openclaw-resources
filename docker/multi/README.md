@@ -68,6 +68,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 # OPENROUTER_API_KEY=sk-or-...
 # OPENROUTER_MODEL=google/gemini-2.0-flash-exp
 OPENCLAW_GATEWAY_TOKEN=change-me-instance-1
+# TELEGRAM_BOT_TOKEN=...
 TZ=America/New_York
 ```
 
@@ -165,21 +166,10 @@ docker compose run --rm openclaw-2-cli doctor
 Append `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` to each instance's `.env`:
 
 ```bash
-# Instance 1
-echo OPENROUTER_API_KEY=sk-or-... >> data/instance-1/.env
-echo OPENROUTER_MODEL=minimax/minimax-m2.7 >> data/instance-1/.env
-
-# Instance 2
-echo OPENROUTER_API_KEY=sk-or-... >> data/instance-2/.env
-echo OPENROUTER_MODEL=minimax/minimax-m2.7 >> data/instance-2/.env
-
-# Instance 3
-echo OPENROUTER_API_KEY=sk-or-... >> data/instance-3/.env
-echo OPENROUTER_MODEL=minimax/minimax-m2.7 >> data/instance-3/.env
-
-# Instance 4
-echo OPENROUTER_API_KEY=sk-or-... >> data/instance-4/.env
-echo OPENROUTER_MODEL=minimax/minimax-m2.7 >> data/instance-4/.env
+for i in 1 2 3 4; do
+  echo OPENROUTER_API_KEY=sk-or-... >> data/instance-$i/.env
+  echo OPENROUTER_MODEL=minimax/minimax-m2.7 >> data/instance-$i/.env
+done
 ```
 
 Alternatively, use Mission Control's **Config & Launch → API Keys** panel to write `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` to all instances at once without touching the command line.
@@ -189,25 +179,22 @@ Alternatively, use Mission Control's **Config & Launch → API Keys** panel to w
 Each instance needs the OpenRouter provider block written into its `openclaw.json`, and the active model set. The CLI services share the network of the main instance container, so **each main instance must be running** before you run the commands for it.
 
 ```bash
-# Instance 1
-docker compose run --rm openclaw-1-cli config set models.providers.openrouter \
-  '{"baseUrl":"https://openrouter.ai/api/v1","apiKey":"${OPENROUTER_API_KEY}","api":"openai-completions","models":["minimax/minimax-m2.7"]}'
-docker compose run --rm openclaw-1-cli models set openrouter/minimax/minimax-m2.7
+PROVIDER='{"baseUrl":"https://openrouter.ai/api/v1","apiKey":"${OPENROUTER_API_KEY}","api":"openai-completions","models":["minimax/minimax-m2.7"]}'
+MODEL=openrouter/minimax/minimax-m2.7
 
-# Instance 2
-docker compose run --rm openclaw-2-cli config set models.providers.openrouter \
-  '{"baseUrl":"https://openrouter.ai/api/v1","apiKey":"${OPENROUTER_API_KEY}","api":"openai-completions","models":["minimax/minimax-m2.7"]}'
-docker compose run --rm openclaw-2-cli models set openrouter/minimax/minimax-m2.7
+# Instances 1 & 2
+for i in 1 2; do
+  docker compose run --rm openclaw-$i-cli config set models.providers.openrouter "$PROVIDER"
+  docker compose run --rm openclaw-$i-cli models set $MODEL
+done
 
 # Instance 3 (only if running with --profile three or --profile four)
-docker compose --profile three run --rm openclaw-3-cli config set models.providers.openrouter \
-  '{"baseUrl":"https://openrouter.ai/api/v1","apiKey":"${OPENROUTER_API_KEY}","api":"openai-completions","models":["minimax/minimax-m2.7"]}'
-docker compose --profile three run --rm openclaw-3-cli models set openrouter/minimax/minimax-m2.7
+docker compose --profile three run --rm openclaw-3-cli config set models.providers.openrouter "$PROVIDER"
+docker compose --profile three run --rm openclaw-3-cli models set $MODEL
 
 # Instance 4 (only if running with --profile four)
-docker compose --profile four run --rm openclaw-4-cli config set models.providers.openrouter \
-  '{"baseUrl":"https://openrouter.ai/api/v1","apiKey":"${OPENROUTER_API_KEY}","api":"openai-completions","models":["minimax/minimax-m2.7"]}'
-docker compose --profile four run --rm openclaw-4-cli models set openrouter/minimax/minimax-m2.7
+docker compose --profile four run --rm openclaw-4-cli config set models.providers.openrouter "$PROVIDER"
+docker compose --profile four run --rm openclaw-4-cli models set $MODEL
 ```
 
 > **Note:** The entire provider block is written in one command because config validation runs on every `config set` call — setting fields one at a time causes a validation failure as soon as the `openrouter` key exists but the required `models` array is still absent. `${OPENROUTER_API_KEY}` is a literal string stored in `openclaw.json`; OpenClaw expands it at runtime from the container's environment. The single quotes prevent your shell from expanding it early. Replace `minimax/minimax-m2.7` with any model slug from [openrouter.ai/models](https://openrouter.ai/models) — update it in both the `models` array and the `models set` argument.
@@ -244,49 +231,23 @@ tar -czf openclaw-data-backup-$(date +%Y%m%d).tar.gz data/
 
 Each instance that uses a Telegram channel needs its own bot token (`TELEGRAM_BOT_TOKEN`). A Telegram bot can only be connected to one instance at a time.
 
-### Set the key for one instance at a time
+### Set the token for a single instance
 
-Append the key to the `.env` file for whichever instance you want to connect to Telegram:
+Append the bot token to the instance's `.env` file (the `echo` command creates the file if absent):
 
 ```bash
-# Instance 1
 echo "TELEGRAM_BOT_TOKEN=your-token-here" >> data/instance-1/.env
-
-# Instance 2
-echo "TELEGRAM_BOT_TOKEN=your-token-here" >> data/instance-2/.env
-
-# Instance 3
-echo "TELEGRAM_BOT_TOKEN=your-token-here" >> data/instance-3/.env
-
-# Instance 4
-echo "TELEGRAM_BOT_TOKEN=your-token-here" >> data/instance-4/.env
 ```
 
-If the `.env` file does not exist yet, create it first (see Step 3 of Quick Start), or use the same `echo` command — it will create the file if absent.
-
-To verify the key was written:
+To verify:
 
 ```bash
 grep TELEGRAM_BOT_TOKEN data/instance-1/.env
 ```
 
-### Set the key for all 4 instances at once
+### Set tokens for all instances at once
 
-If you have four separate bot tokens (one per instance), export them as shell variables and write them all in one go:
-
-```bash
-TOKEN1=your-token-for-instance-1
-TOKEN2=your-token-for-instance-2
-TOKEN3=your-token-for-instance-3
-TOKEN4=your-token-for-instance-4
-
-echo "TELEGRAM_BOT_TOKEN=${TOKEN1}" >> data/instance-1/.env
-echo "TELEGRAM_BOT_TOKEN=${TOKEN2}" >> data/instance-2/.env
-echo "TELEGRAM_BOT_TOKEN=${TOKEN3}" >> data/instance-3/.env
-echo "TELEGRAM_BOT_TOKEN=${TOKEN4}" >> data/instance-4/.env
-```
-
-Or as a single command using a loop (replace each token value inline):
+If you have four separate bot tokens (one per instance):
 
 ```bash
 declare -A TOKENS=(
@@ -300,6 +261,8 @@ for i in 1 2 3 4; do
 done
 ```
 
+Alternatively, use Mission Control's **Config & Launch → Telegram Bot Tokens** panel to set tokens per instance through the web UI.
+
 After updating any `.env` file, restart the affected instance for the change to take effect:
 
 ```bash
@@ -308,37 +271,24 @@ docker compose restart openclaw-1   # or whichever instance was updated
 
 ---
 
-## Port Map
-
-| Service | Host Port | URL |
-|---|---|---|
-| openclaw-1 (Research) | 18789 | http://localhost:18789 |
-| openclaw-2 (Coding)   | 18790 | http://localhost:18790 |
-| openclaw-3 (Comms)    | 18791 | http://localhost:18791 |
-| openclaw-4 (Ops)      | 18792 | http://localhost:18792 |
-| Mission Control       | 4000  | http://localhost:4000  |
-
----
-
-## Connecting to Gateways
+## Port Map & Gateways
 
 Each instance exposes an HTTP gateway on its host port. Connect your clients (apps, bots, CLI tools) to the relevant URL:
 
-| Instance | Gateway URL | Notes |
-|---|---|---|
-| openclaw-1 (Research)  | http://localhost:18789 | Default instance |
-| openclaw-2 (Coding)    | http://localhost:18790 | |
-| openclaw-3 (Comms)     | http://localhost:18791 | Requires `--profile three` or `--profile four` |
-| openclaw-4 (Ops)       | http://localhost:18792 | Requires `--profile four` |
-| Mission Control        | http://localhost:4000  | Web UI — manage all instances |
+| Service | Host Port | URL | Notes |
+|---|---|---|---|
+| openclaw-1 (Research) | 18789 | http://localhost:18789 | Always started |
+| openclaw-2 (Coding)   | 18790 | http://localhost:18790 | Always started |
+| openclaw-3 (Comms)    | 18791 | http://localhost:18791 | Requires `--profile three` or `--profile four` |
+| openclaw-4 (Ops)      | 18792 | http://localhost:18792 | Requires `--profile four` |
+| Mission Control       | 4000  | http://localhost:4000  | Web UI — manage all instances |
 
 To verify each gateway is up and accepting connections:
 
 ```bash
-curl http://localhost:18789/healthz
-curl http://localhost:18790/healthz
-curl http://localhost:18791/healthz   # if running instance 3
-curl http://localhost:18792/healthz   # if running instance 4
+for port in 18789 18790 18791 18792; do
+  curl -sf http://localhost:$port/healthz && echo "  ← $port OK" || echo "  ← $port unreachable"
+done
 ```
 
 Or use the CLI doctor command:

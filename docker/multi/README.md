@@ -193,28 +193,32 @@ Each instance needs the OpenRouter provider block written into its `openclaw.jso
 docker compose run --rm openclaw-1-cli config set models.providers.openrouter.baseUrl "https://openrouter.ai/api/v1"
 docker compose run --rm openclaw-1-cli config set models.providers.openrouter.apiKey '${OPENROUTER_API_KEY}'
 docker compose run --rm openclaw-1-cli config set models.providers.openrouter.api "openai-completions"
+docker compose run --rm openclaw-1-cli config set models.providers.openrouter.models '["minimax/minimax-m2.7"]'
 docker compose run --rm openclaw-1-cli models set openrouter/minimax/minimax-m2.7
 
 # Instance 2
 docker compose run --rm openclaw-2-cli config set models.providers.openrouter.baseUrl "https://openrouter.ai/api/v1"
 docker compose run --rm openclaw-2-cli config set models.providers.openrouter.apiKey '${OPENROUTER_API_KEY}'
 docker compose run --rm openclaw-2-cli config set models.providers.openrouter.api "openai-completions"
+docker compose run --rm openclaw-2-cli config set models.providers.openrouter.models '["minimax/minimax-m2.7"]'
 docker compose run --rm openclaw-2-cli models set openrouter/minimax/minimax-m2.7
 
 # Instance 3 (only if running with --profile three or --profile four)
 docker compose --profile three run --rm openclaw-3-cli config set models.providers.openrouter.baseUrl "https://openrouter.ai/api/v1"
 docker compose --profile three run --rm openclaw-3-cli config set models.providers.openrouter.apiKey '${OPENROUTER_API_KEY}'
 docker compose --profile three run --rm openclaw-3-cli config set models.providers.openrouter.api "openai-completions"
+docker compose --profile three run --rm openclaw-3-cli config set models.providers.openrouter.models '["minimax/minimax-m2.7"]'
 docker compose --profile three run --rm openclaw-3-cli models set openrouter/minimax/minimax-m2.7
 
 # Instance 4 (only if running with --profile four)
 docker compose --profile four run --rm openclaw-4-cli config set models.providers.openrouter.baseUrl "https://openrouter.ai/api/v1"
 docker compose --profile four run --rm openclaw-4-cli config set models.providers.openrouter.apiKey '${OPENROUTER_API_KEY}'
 docker compose --profile four run --rm openclaw-4-cli config set models.providers.openrouter.api "openai-completions"
+docker compose --profile four run --rm openclaw-4-cli config set models.providers.openrouter.models '["minimax/minimax-m2.7"]'
 docker compose --profile four run --rm openclaw-4-cli models set openrouter/minimax/minimax-m2.7
 ```
 
-> **Note:** `${OPENROUTER_API_KEY}` is a literal string stored in `openclaw.json` — OpenClaw expands it at runtime from the container's environment (loaded from `data/instance-N/.env` via `env_file` in `docker-compose.yml`). The single quotes in the `apiKey` command prevent your shell from expanding it early. Replace `openrouter/minimax/minimax-m2.7` with any model slug from [openrouter.ai/models](https://openrouter.ai/models).
+> **Note:** `${OPENROUTER_API_KEY}` is a literal string stored in `openclaw.json` — OpenClaw expands it at runtime from the container's environment (loaded from `data/instance-N/.env` via `env_file` in `docker-compose.yml`). The single quotes in the `apiKey` command prevent your shell from expanding it early. Replace `minimax/minimax-m2.7` with any model slug from [openrouter.ai/models](https://openrouter.ai/models) — update it in both the `models` array and the `models set` argument.
 
 ### 3. Verify
 
@@ -483,3 +487,26 @@ The `openclaw-1-cli` service uses `network_mode: "service:openclaw-1"`, so `dock
    ```
 
 **Prevention:** Always run all `docker compose` commands from the same directory (`docker/multi/`). The compose file sets `name: openclaw-multi` to stabilise the project name, but Docker Compose still needs a consistent working directory to recognise the already-running `openclaw-1` container as part of its project rather than attempting to create a new one.
+
+### `models set` fails with "expected array, received undefined"
+
+**Symptom:**
+
+```
+Error: Config validation failed: models.providers.openrouter.models: Invalid input: expected array, received undefined
+```
+
+**Cause:**
+
+The OpenRouter provider config requires a `models` array field. The three `config set` commands for `baseUrl`, `apiKey`, and `api` do not create this field, so when `models set` runs and validates the config it finds the field missing.
+
+**Fix:**
+
+Add a `config set` for `models.providers.openrouter.models` before running `models set`:
+
+```bash
+docker compose run --rm openclaw-1-cli config set models.providers.openrouter.models '["minimax/minimax-m2.7"]'
+docker compose run --rm openclaw-1-cli models set openrouter/minimax/minimax-m2.7
+```
+
+The value must be a JSON array (note the single quotes around the outer string to prevent shell expansion). The array lists the model slugs available under this provider.

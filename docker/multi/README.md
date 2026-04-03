@@ -448,3 +448,38 @@ sudo chown -R 1000:1000 data/
 - Bind to `127.0.0.1` if you don't need LAN access: change port mapping to `"127.0.0.1:18789:18789"`.
 - For hardened container settings (read-only filesystem, capability drops), see [`openclaw-isolation-guide.md`](../../openclaw-isolation-guide.md).
 - Never commit `.env` files to version control.
+
+---
+
+## Troubleshooting
+
+### `docker compose run` fails with "container name already in use"
+
+**Symptom:**
+
+```
+Error response from daemon: Conflict. The container name "/openclaw-1" is already in use by container "...".
+You have to remove (or rename) that container to be able to reuse that name.
+```
+
+**Cause:**
+
+The `openclaw-1-cli` service uses `network_mode: "service:openclaw-1"`, so `docker compose run` must start `openclaw-1` as a dependency. Because `openclaw-1` has a fixed `container_name`, Docker refuses to create a second container with that name if one already exists — for example, after a previous run was interrupted before `--rm` could clean it up, or if the `run` command was issued from a different directory than the one used for `docker compose up -d` (causing Docker Compose to derive a different project name and try to recreate the service from scratch).
+
+**Fix:**
+
+1. Remove the stale container:
+
+   ```bash
+   docker rm -f openclaw-1
+   ```
+
+2. Restart the instance and retry:
+
+   ```bash
+   # Run from docker/multi/
+   docker compose up -d openclaw-1
+   docker compose run --rm openclaw-1-cli config set ...
+   ```
+
+**Prevention:** Always run all `docker compose` commands from the same directory (`docker/multi/`). The compose file sets `name: openclaw-multi` to stabilise the project name, but Docker Compose still needs a consistent working directory to recognise the already-running `openclaw-1` container as part of its project rather than attempting to create a new one.

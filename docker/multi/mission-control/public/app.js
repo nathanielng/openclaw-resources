@@ -19,7 +19,7 @@ let healthData   = {};
 let costData     = {};
 let kanbanData   = { items: [] };
 let pairings     = [];
-let subscribedLogs = new Set([1, 2, 3, 4]); // start streaming all instances
+let subscribedLogs = new Set([1, 2, 3, 4]); // always stream all; filter is display-only
 let dragItemId   = null;
 let selectedCount = 2;
 let budget       = parseFloat(localStorage.getItem('budget') || '0') || 0;
@@ -42,7 +42,7 @@ function connectWS() {
 
   ws.addEventListener('open', () => {
     document.getElementById('ws-dot').className = 'ws-dot connected';
-    // Re-subscribe to any active log streams
+    // Subscribe to all log streams (filtering is display-only on the client)
     subscribedLogs.forEach(id => ws.send(JSON.stringify({ type: 'subscribe_logs', instanceId: id })));
     clearTimeout(wsReconnectTimer);
   });
@@ -286,9 +286,9 @@ async function deleteItem(id) {
 // ── Live Logs ──────────────────────────────────────────────────────────────
 
 function onLogLine({ instanceId, line, ts }) {
-  if (!subscribedLogs.has(instanceId)) return;
   const box  = document.getElementById('log-box');
   const meta = INSTANCE_META[instanceId];
+  if (!meta) return;
   const time = new Date(ts).toLocaleTimeString();
 
   const isError = /error|fail|exception/i.test(line);
@@ -296,6 +296,7 @@ function onLogLine({ instanceId, line, ts }) {
 
   const el = document.createElement('span');
   el.className = `log-line${isError ? ' error' : isWarn ? ' warn' : ''}`;
+  el.dataset.instance = instanceId;
   el.innerHTML = `<span class="ts">${time}</span><span class="id" style="color:${meta.color}">[${meta.label}]</span>${escHtml(line)}`;
 
   box.appendChild(el);
@@ -309,32 +310,24 @@ function onLogLine({ instanceId, line, ts }) {
 }
 
 // Log filter buttons (All / Research / Coding / Comms / Ops)
-const ALL_LOG_IDS = [1, 2, 3, 4];
-
+// All log lines are always cached in the DOM; filtering is purely via CSS.
 document.querySelectorAll('.log-filter').forEach(btn => {
   btn.addEventListener('click', () => {
     const filter = btn.dataset.filter;
-    const newSet = filter === 'all' ? new Set(ALL_LOG_IDS) : new Set([parseInt(filter)]);
+    const box = document.getElementById('log-box');
 
-    // Unsubscribe instances no longer in view
-    subscribedLogs.forEach(id => {
-      if (!newSet.has(id) && ws && ws.readyState === 1)
-        ws.send(JSON.stringify({ type: 'unsubscribe_logs', instanceId: id }));
-    });
-
-    // Subscribe to newly selected instances
-    newSet.forEach(id => {
-      if (!subscribedLogs.has(id) && ws && ws.readyState === 1)
-        ws.send(JSON.stringify({ type: 'subscribe_logs', instanceId: id }));
-    });
-
-    subscribedLogs = newSet;
-
-    // Clear stale log lines from previously-active streams
-    document.getElementById('log-box').innerHTML = '';
+    if (filter === 'all') {
+      delete box.dataset.filter;
+    } else {
+      box.dataset.filter = filter;
+    }
 
     document.querySelectorAll('.log-filter').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+
+    if (document.getElementById('auto-scroll').checked) {
+      box.scrollTop = box.scrollHeight;
+    }
   });
 });
 

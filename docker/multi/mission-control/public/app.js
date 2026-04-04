@@ -107,9 +107,8 @@ function renderFleet() {
     const h = healthData[id] || {};
     const status = h.status || 'unknown';
     const lastCheck = h.lastCheck ? new Date(h.lastCheck).toLocaleTimeString() : '—';
-    const model = (h.data && h.data.model) || (costData[id] && costData[id].model) || '—';
-    const today = new Date().toISOString().slice(0, 10);
-    const dailyCost = costData[id] ? (costData[id].daily && costData[id].daily[today]) || 0 : 0;
+    const model = (h.data && h.data.model) || '—';
+    const usage = costData[id] ? (costData[id].usageDaily || 0) : 0;
     const running = status === 'healthy' || status === 'degraded';
 
     const card = document.createElement('div');
@@ -137,9 +136,9 @@ function renderFleet() {
           <div class="meta-value" style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${model}</div>
         </div>
         <div class="meta-item">
-          <div class="meta-label">Today's cost</div>
-          <div class="meta-value" style="color:${dailyCost > 1 ? 'var(--degraded)' : 'inherit'}">
-            $${dailyCost.toFixed(4)}
+          <div class="meta-label">Usage</div>
+          <div class="meta-value" style="color:${usage > 1 ? 'var(--degraded)' : 'inherit'}">
+            $${usage.toFixed(4)}
           </div>
         </div>
       </div>
@@ -492,33 +491,37 @@ function onCost(data) {
 function renderCost() {
   const grid = document.getElementById('cost-grid');
   grid.innerHTML = '';
-  const today = new Date().toISOString().slice(0, 10);
 
   // Fleet total card
-  const totalAll = Object.values(costData).reduce((s, d) => s + (d.total || 0), 0);
-  const todayAll = Object.values(costData).reduce((s, d) => s + ((d.daily && d.daily[today]) || 0), 0);
+  const totalUsage = Object.values(costData).reduce((s, d) => s + (d.usage || 0), 0);
+  const totalDaily = Object.values(costData).reduce((s, d) => s + (d.usageDaily || 0), 0);
   const fleetCard = document.createElement('div');
   fleetCard.className = 'cost-card';
   fleetCard.innerHTML = `
     <h4>Fleet Total</h4>
-    <div class="cost-total">$${totalAll.toFixed(4)}</div>
-    <div class="cost-daily">Today: $${todayAll.toFixed(4)}</div>
+    <div class="cost-total">$${totalUsage.toFixed(4)} total</div>
+    <div class="cost-daily">Today: $${totalDaily.toFixed(4)}</div>
   `;
   grid.appendChild(fleetCard);
 
   Object.entries(INSTANCE_META).forEach(([id, meta]) => {
-    const d = costData[id] || { total: 0, daily: {}, model: '—' };
-    const todayCost = (d.daily && d.daily[today]) || 0;
-    const overBudget = budget > 0 && todayCost > budget;
+    const d = costData[id] || {};
+    const overBudget = budget > 0 && (d.usageDaily || 0) > budget;
 
     const card = document.createElement('div');
     card.className = 'cost-card';
     card.style.borderColor = overBudget ? 'var(--dead)' : '';
     card.innerHTML = `
       <h4 style="color:${meta.color}">${meta.label} (${id})</h4>
-      <div class="cost-total">$${(d.total || 0).toFixed(4)}</div>
-      <div class="cost-daily">Today: $${todayCost.toFixed(4)}${overBudget ? ' ⚠ over budget' : ''}</div>
-      <div class="cost-model">${d.model || '—'}</div>
+      ${d.error && !d.usage ? `<div class="cost-daily" style="color:var(--dead)">${escHtml(d.error)}</div>` : `
+        <div class="cost-total">$${(d.usage || 0).toFixed(4)} total</div>
+        <div class="cost-daily">Today: $${(d.usageDaily || 0).toFixed(4)}${overBudget ? ' ⚠ over budget' : ''}</div>
+        <div class="cost-model" style="font-size:11px;color:var(--muted)">
+          Week: $${(d.usageWeekly || 0).toFixed(4)} · Month: $${(d.usageMonthly || 0).toFixed(4)}
+        </div>
+        ${d.limit ? `<div style="font-size:11px;color:var(--muted)">Limit: $${d.limit} ($${(d.limitRemaining || 0).toFixed(2)} left)</div>` : ''}
+      `}
+      ${d.lastCheck ? `<div style="font-size:10px;color:var(--muted);margin-top:4px">Updated ${new Date(d.lastCheck).toLocaleTimeString()}</div>` : ''}
     `;
     grid.appendChild(card);
   });
@@ -526,8 +529,8 @@ function renderCost() {
   // Budget status
   const statusEl = document.getElementById('budget-status');
   if (budget > 0) {
-    statusEl.textContent = `Alert at $${budget.toFixed(2)}/day. Today fleet total: $${todayAll.toFixed(4)}`;
-    if (todayAll > budget) toast(`⚠ Daily budget exceeded: $${todayAll.toFixed(4)} > $${budget.toFixed(2)}`, 'error');
+    statusEl.textContent = `Alert at $${budget.toFixed(2)}/day. Fleet daily total: $${totalDaily.toFixed(4)}`;
+    if (totalDaily > budget) toast(`⚠ Daily budget exceeded: $${totalDaily.toFixed(4)} > $${budget.toFixed(2)}`, 'error');
   } else {
     statusEl.textContent = 'No budget set.';
   }

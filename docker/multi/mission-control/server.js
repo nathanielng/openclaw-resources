@@ -88,50 +88,50 @@ function startHealthPolling() {
   }, 10000);
 }
 
-// ── Cost / token tracking ──────────────────────────────────────────────────
-// Scraped from docker logs; accumulates in memory and persisted to disk.
+// ── Cost tracking via OpenRouter credits API ───────────────────────────────
 
-const COST_FILE = path.join(MC_DATA, 'cost.json');
+const costState = {};
 
-function loadCost() {
-  try { return JSON.parse(fs.readFileSync(COST_FILE, 'utf8')); } catch { return {}; }
+function getOpenRouterKey(instanceId) {
+  const content = readEnvFile(path.join(DATA_DIR, `instance-${instanceId}`, '.env'));
+  const m = content.match(/^OPENROUTER_API_KEY=(.+)$/m);
+  return m ? m[1].trim() : null;
 }
 
-function saveCost(data) {
-  fs.writeFileSync(COST_FILE, JSON.stringify(data, null, 2));
+async function pollCredits(inst) {
+  const key = getOpenRouterKey(inst.id);
+  if (!key) { costState[inst.id] = { error: 'no API key' }; return; }
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/key', {
+      headers: { 'Authorization': `Bearer ${key}` },
+      signal: AbortSignal.timeout(10000),
+    });
+    const data = await res.json();
+    if (data.data) {
+      const d = data.data;
+      costState[inst.id] = {
+        label: d.label || null,
+        usage: d.usage || 0,
+        usageDaily: d.usage_daily || 0,
+        usageWeekly: d.usage_weekly || 0,
+        usageMonthly: d.usage_monthly || 0,
+        limit: d.limit || null,
+        limitRemaining: d.limit_remaining || null,
+        lastCheck: new Date().toISOString(),
+      };
+    }
+  } catch (e) {
+    costState[inst.id] = { ...costState[inst.id], error: e.message, lastCheck: new Date().toISOString() };
+  }
 }
 
-const costState = loadCost();
-
-// Rough per-token cost lookup ($ per 1k tokens, input+output blended estimate)
-const MODEL_COSTS = {
-  'claude-opus':   0.02,
-  'claude-sonnet': 0.005,
-  'claude-haiku':  0.0004,
-  'gpt-4o':        0.006,
-  'default':       0.005,
-};
-
-function estimateCost(model, tokens) {
-  const key = Object.keys(MODEL_COSTS).find(k => (model || '').toLowerCase().includes(k)) || 'default';
-  return (tokens / 1000) * MODEL_COSTS[key];
+function startCostPolling() {
+  INSTANCES.forEach(inst => {
+    pollCredits(inst);
+    setInterval(() => pollCredits(inst), 60000);
+  });
+  setInterval(() => broadcast({ type: 'cost_update', payload: costState }), 15000);
 }
-
-function recordTokens(instanceId, model, tokens) {
-  const today = new Date().toISOString().slice(0, 10);
-  if (!costState[instanceId]) costState[instanceId] = { total: 0, daily: {}, model: model || 'unknown' };
-  if (!costState[instanceId].daily[today]) costState[instanceId].daily[today] = 0;
-  const cost = estimateCost(model, tokens);
-  costState[instanceId].total += cost;
-  costState[instanceId].daily[today] += cost;
-  costState[instanceId].model = model || costState[instanceId].model;
-  saveCost(costState);
-  broadcast({ type: 'cost_update', payload: costState });
-}
-
-// Token patterns in OpenClaw logs (best-effort)
-const TOKEN_RE = /tokens?[:\s]+(\d+)/i;
-const MODEL_RE = /model[:\s]+([a-z0-9/_-]+)/i;
 
 // ── WebSocket ──────────────────────────────────────────────────────────────
 
@@ -227,14 +227,6 @@ async function ensureLogStream(instanceId) {
         savePairings();
         broadcast({ type: 'pairings', payload: pendingPairings });
       }
-    }
-
-    // Token scraping
-    const tm = line.match(TOKEN_RE);
-    const mm = line.match(MODEL_RE);
-    if (tm) {
-      const model = mm ? mm[1] : null;
-      recordTokens(instanceId, model, parseInt(tm[1], 10));
     }
   };
 
@@ -595,7 +587,7 @@ app.get('/api/config/keys', (_req, res) => {
       const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)/);
       if (m) {
         const v = m[2];
-        vars[m[1]] = v.length > 8 ? `${v.slice(0, 4)}${'*'.repeat(Math.max(4, v.length - 8))}${v.slice(-4)}` : '****';
+        vars[m[1]] = m[1] === 'OPENROUTER_MODEL' ? v : (v.length > 8 ? `${v.slice(0, 4)}****${v.slice(-4)}` : '****');
       }
     });
     return { instanceId: inst.id, vars };
@@ -792,4 +784,5 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`Data dir:     ${DATA_DIR}`);
   INSTANCES.forEach(inst => ensureGatewayBinding(inst.id));
   startHealthPolling();
+  startCostPolling();
 });

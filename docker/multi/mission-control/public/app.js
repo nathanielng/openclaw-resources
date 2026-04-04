@@ -239,9 +239,10 @@ function renderKanban() {
         </div>
         ${item.prompt ? `<div class="card-prompt" style="font-size:11px;color:var(--muted);margin:4px 0;white-space:pre-wrap;max-height:60px;overflow:auto">${escHtml(item.prompt)}</div>` : ''}
         <div class="card-footer">
-          <span class="card-assignee" style="${meta ? `background:${meta.color}22;color:${meta.color}` : ''}">
-            ${meta ? meta.label : 'Unassigned'}
-          </span>
+          <select class="card-assignee-select" data-id="${item.id}" style="font-size:11px;padding:2px 4px;border-radius:4px;border:1px solid var(--border);background:var(--surface2);color:var(--text);${meta ? `color:${meta.color}` : ''}">
+            <option value=""${!item.assignee ? ' selected' : ''}>Unassigned</option>
+            ${Object.entries(INSTANCE_META).map(([k, m]) => `<option value="${k}"${item.assignee == k ? ' selected' : ''} style="color:${m.color}">${m.label}</option>`).join('')}
+          </select>
           <span class="card-priority ${item.priority}">${item.priority}</span>
         </div>
         ${actionHtml ? `<div class="card-actions" style="margin-top:6px">${actionHtml}</div>` : ''}
@@ -250,6 +251,10 @@ function renderKanban() {
       card.querySelector('.card-delete').addEventListener('click', (e) => {
         e.stopPropagation();
         deleteItem(item.id);
+      });
+      card.querySelector('.card-assignee-select').addEventListener('change', async (e) => {
+        e.stopPropagation();
+        await api('PATCH', `/api/kanban/items/${item.id}`, { assignee: e.target.value || null });
       });
       const dispatchBtn = card.querySelector('.card-dispatch');
       if (dispatchBtn) {

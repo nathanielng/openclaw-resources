@@ -494,9 +494,16 @@ app.delete('/api/kanban/items/:id', (req, res) => {
   res.json({ ok: true });
 });
 
-// Read the gateway token from an instance's .env file
+// Read the gateway token from an instance's openclaw.json or .env file
 function getGatewayToken(instanceId) {
-  const content = readEnvFile(path.join(DATA_DIR, `instance-${instanceId}`, '.env'));
+  const base = path.join(DATA_DIR, `instance-${instanceId}`);
+  // Primary: openclaw.json gateway.auth.token
+  try {
+    const config = JSON.parse(fs.readFileSync(path.join(base, 'openclaw.json'), 'utf8'));
+    if (config.gateway?.auth?.token) return config.gateway.auth.token;
+  } catch {}
+  // Fallback: .env OPENCLAW_GATEWAY_TOKEN
+  const content = readEnvFile(path.join(base, '.env'));
   const m = content.match(/^OPENCLAW_GATEWAY_TOKEN=(.+)$/m);
   return m ? m[1].trim() : null;
 }

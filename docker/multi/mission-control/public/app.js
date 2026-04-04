@@ -22,6 +22,7 @@ let pairings     = [];
 let subscribedLogs = new Set([1, 2, 3, 4]); // always stream all; filter is display-only
 let dragItemId   = null;
 let selectedCount = 2;
+let startingInstances = new Set();
 let budget       = parseFloat(localStorage.getItem('budget') || '0') || 0;
 
 // ── Toast ──────────────────────────────────────────────────────────────────
@@ -84,6 +85,10 @@ document.querySelectorAll('.tab').forEach(tab => {
 
 function onHealth(data) {
   healthData = data;
+  // Clear starting state for instances that are now running
+  Object.entries(data).forEach(([id, h]) => {
+    if (h.status === 'healthy' || h.status === 'degraded') startingInstances.delete(id);
+  });
   renderFleet();
   document.getElementById('fleet-updated').textContent =
     `Updated ${new Date().toLocaleTimeString()}`;
@@ -138,7 +143,7 @@ function renderFleet() {
         </div>
       </div>
       <div class="agent-actions">
-        <button class="btn btn-success btn-sm btn-start-instance" data-id="${id}" ${running ? 'disabled' : ''}>▶ Start</button>
+        <button class="btn btn-success btn-sm btn-start-instance" data-id="${id}" ${running || startingInstances.has(id) ? 'disabled' : ''}>▶ Start</button>
         <button class="btn btn-danger  btn-sm btn-stop-instance"  data-id="${id}" ${!running ? 'disabled' : ''}>■ Stop</button>
         <button class="btn btn-ghost   btn-sm btn-ping-instance"  data-id="${id}" title="Ping now">↻</button>
       </div>
@@ -150,14 +155,17 @@ function renderFleet() {
   const out = document.getElementById('fleet-compose-output');
   grid.querySelectorAll('.btn-start-instance').forEach(btn => {
     btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      startingInstances.add(id);
       btn.disabled = true;
       try {
-        await streamingPost(`/api/compose/up/${btn.dataset.id}`, {}, out);
-        toast(`Instance ${btn.dataset.id} starting…`, 'success');
+        await streamingPost(`/api/compose/up/${id}`, {}, out);
+        toast(`Instance ${id} starting…`, 'success');
       } catch (err) {
+        startingInstances.delete(id);
         toast('Start failed: ' + err.message, 'error');
-        btn.disabled = false;
       }
+      renderFleet();
     });
   });
 
@@ -210,23 +218,62 @@ function renderKanban() {
       card.className = 'kanban-card';
       card.draggable = true;
       card.dataset.id = item.id;
+
+      // Action button depends on column
+      let actionHtml = '';
+      if (col === 'backlog' && item.assignee) {
+        actionHtml = `<button class="btn btn-success btn-sm card-dispatch" data-id="${item.id}">▶ Dispatch</button>`;
+      } else if (col === 'inprogress') {
+        actionHtml = `<span class="card-status-badge" style="font-size:11px;color:var(--muted)">⏳ Working…</span>`;
+        if (item.dispatchError) {
+          actionHtml = `<span class="card-status-badge" style="font-size:11px;color:var(--dead)">⚠ ${escHtml(item.dispatchError)}</span>`;
+        }
+      } else if (col === 'review') {
+        actionHtml = `<button class="btn btn-success btn-sm card-done" data-id="${item.id}">✓ Mark Done</button>`;
+      }
+
       card.innerHTML = `
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px">
           <div class="card-title">${escHtml(item.title)}</div>
           <button class="card-delete" data-id="${item.id}" title="Delete">×</button>
         </div>
+        ${item.prompt ? `<div class="card-prompt" style="font-size:11px;color:var(--muted);margin:4px 0;white-space:pre-wrap;max-height:60px;overflow:auto">${escHtml(item.prompt)}</div>` : ''}
         <div class="card-footer">
           <span class="card-assignee" style="${meta ? `background:${meta.color}22;color:${meta.color}` : ''}">
             ${meta ? meta.label : 'Unassigned'}
           </span>
           <span class="card-priority ${item.priority}">${item.priority}</span>
         </div>
+        ${actionHtml ? `<div class="card-actions" style="margin-top:6px">${actionHtml}</div>` : ''}
       `;
       card.addEventListener('dragstart', onDragStart);
       card.querySelector('.card-delete').addEventListener('click', (e) => {
         e.stopPropagation();
         deleteItem(item.id);
       });
+      const dispatchBtn = card.querySelector('.card-dispatch');
+      if (dispatchBtn) {
+        dispatchBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          dispatchBtn.disabled = true;
+          dispatchBtn.textContent = '…';
+          try {
+            await api('POST', `/api/kanban/items/${item.id}/dispatch`);
+            toast('Task dispatched', 'success');
+          } catch (err) { toast('Dispatch failed: ' + err.message, 'error'); }
+        });
+      }
+      const doneBtn = card.querySelector('.card-done');
+      if (doneBtn) {
+        doneBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          doneBtn.disabled = true;
+          try {
+            await api('POST', `/api/kanban/items/${item.id}/done`);
+            toast('Task marked done', 'success');
+          } catch (err) { toast('Mark done failed: ' + err.message, 'error'); }
+        });
+      }
       container.appendChild(card);
     });
   });
@@ -269,12 +316,14 @@ document.getElementById('btn-save-task').addEventListener('click', async () => {
 
   await api('POST', '/api/kanban/items', {
     title,
+    prompt: document.getElementById('task-prompt').value.trim(),
     assignee: document.getElementById('task-assignee').value || null,
     column:   document.getElementById('task-column').value,
     priority: document.getElementById('task-priority').value,
   });
 
   document.getElementById('task-title').value = '';
+  document.getElementById('task-prompt').value = '';
   document.getElementById('add-task-form').classList.remove('open');
   toast('Task added', 'success');
 });

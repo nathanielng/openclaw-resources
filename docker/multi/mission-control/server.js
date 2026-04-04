@@ -154,10 +154,17 @@ const logStreams = new Map();
 // Patterns for extracting pairing codes from OpenClaw logs
 const PAIRING_RE = /pairing code[:\s]+([A-Z0-9]{6,10})/i;
 
-function ensureLogStream(instanceId) {
+async function ensureLogStream(instanceId) {
   if (logStreams.has(instanceId)) return;
   const inst = INSTANCES.find(i => i.id === instanceId);
   if (!inst) return;
+
+  // Don't spawn docker logs for containers that aren't running
+  const status = await getContainerStatus(inst.name);
+  if (status !== 'running') return;
+
+  // Re-check after async gap
+  if (logStreams.has(instanceId)) return;
 
   const proc = spawn('docker', ['logs', '--follow', '--tail', '200', inst.name], {
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -201,7 +208,26 @@ function ensureLogStream(instanceId) {
   };
   proc.stdout.on('data', handleChunk('stdout'));
   proc.stderr.on('data', handleChunk('stderr'));
-  proc.on('exit', () => logStreams.delete(instanceId));
+  proc.on('exit', () => {
+    const subscribers = entry.clients;
+    logStreams.delete(instanceId);
+    if (subscribers.size === 0) return;
+
+    // Retry periodically until the container is running or all clients disconnect
+    const retryInterval = setInterval(async () => {
+      const alive = [...subscribers].filter(ws => ws.readyState === 1);
+      if (alive.length === 0 || logStreams.has(instanceId)) {
+        clearInterval(retryInterval);
+        return;
+      }
+      await ensureLogStream(instanceId);
+      const stream = logStreams.get(instanceId);
+      if (stream) {
+        alive.forEach(ws => stream.clients.add(ws));
+        clearInterval(retryInterval);
+      }
+    }, 10000);
+  });
 }
 
 // ── Kanban ─────────────────────────────────────────────────────────────────
@@ -439,6 +465,7 @@ app.post('/api/kanban/items', (req, res) => {
     id: crypto.randomUUID(),
     column: req.body.column || 'backlog',
     title: req.body.title || 'Untitled task',
+    prompt: req.body.prompt || '',
     assignee: req.body.assignee || null,
     priority: req.body.priority || 'medium',
     createdAt: new Date().toISOString(),
@@ -465,6 +492,86 @@ app.delete('/api/kanban/items/:id', (req, res) => {
   saveKanban(board);
   broadcast({ type: 'kanban_update', payload: board });
   res.json({ ok: true });
+});
+
+// Read the gateway token from an instance's .env file
+function getGatewayToken(instanceId) {
+  const content = readEnvFile(path.join(DATA_DIR, `instance-${instanceId}`, '.env'));
+  const m = content.match(/^OPENCLAW_GATEWAY_TOKEN=(.+)$/m);
+  return m ? m[1].trim() : null;
+}
+
+// Dispatch a kanban task to the assigned agent
+app.post('/api/kanban/items/:id/dispatch', async (req, res) => {
+  const board = loadKanban();
+  const item = board.items.find(i => i.id === req.params.id);
+  if (!item) return res.status(404).json({ error: 'not found' });
+  if (!item.assignee) return res.status(400).json({ error: 'no assignee' });
+
+  const inst = INSTANCES.find(i => i.id === parseInt(item.assignee));
+  if (!inst) return res.status(400).json({ error: 'unknown instance' });
+
+  const token = getGatewayToken(inst.id);
+  if (!token) return res.status(400).json({ error: 'no gateway token configured for instance ' + inst.id });
+
+  // Move to inprogress immediately
+  item.column = 'inprogress';
+  item.dispatchedAt = new Date().toISOString();
+  saveKanban(board);
+  broadcast({ type: 'kanban_update', payload: board });
+  res.json({ ok: true, item });
+
+  // Fire-and-forget: send message to agent, move to review when done
+  const url = `http://${inst.name}:${inst.internalPort}/api/v1/message`;
+  try {
+    const agentRes = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        channel: 'api',
+        message: item.prompt || item.title,
+        wait_for_response: true,
+        timeout_ms: 120000,
+      }),
+      signal: AbortSignal.timeout(130000),
+    });
+    const data = await agentRes.json().catch(() => ({}));
+
+    // Reload board (may have changed while we waited)
+    const fresh = loadKanban();
+    const freshItem = fresh.items.find(i => i.id === item.id);
+    if (freshItem && freshItem.column === 'inprogress') {
+      freshItem.column = 'review';
+      freshItem.agentResponse = data.content || data.message || JSON.stringify(data);
+      freshItem.completedAt = new Date().toISOString();
+      saveKanban(fresh);
+      broadcast({ type: 'kanban_update', payload: fresh });
+    }
+  } catch (e) {
+    // On failure, add error info but leave in inprogress for manual triage
+    const fresh = loadKanban();
+    const freshItem = fresh.items.find(i => i.id === item.id);
+    if (freshItem && freshItem.column === 'inprogress') {
+      freshItem.dispatchError = e.message;
+      saveKanban(fresh);
+      broadcast({ type: 'kanban_update', payload: fresh });
+    }
+  }
+});
+
+// Mark a review task as done
+app.post('/api/kanban/items/:id/done', (req, res) => {
+  const board = loadKanban();
+  const item = board.items.find(i => i.id === req.params.id);
+  if (!item) return res.status(404).json({ error: 'not found' });
+  item.column = 'done';
+  item.doneAt = new Date().toISOString();
+  saveKanban(board);
+  broadcast({ type: 'kanban_update', payload: board });
+  res.json({ ok: true, item });
 });
 
 // Manual health poll — trigger an immediate check and broadcast the result

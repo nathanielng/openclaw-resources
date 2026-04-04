@@ -646,3 +646,11 @@ select option { background: var(--surface2); }
 .text-sm { font-size: 12px; }
 .w-full { width: 100%; }
 .hidden { display: none !important; }
+
+/* ── Chat ──────────────────────────────────────────────────────────────── */
+.chat-inst-btn.active { border-color: var(--blue); background: #1a2a40; color: var(--blue); }
+.chat-msg { padding: 8px 12px; border-radius: 8px; max-width: 80%; font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+.chat-msg.user { align-self: flex-end; background: #1a2a40; color: var(--blue); }
+.chat-msg.assistant { align-self: flex-start; background: var(--surface2); color: var(--fg); }
+.chat-msg .chat-role { font-size: 10px; font-weight: 600; color: var(--muted); margin-bottom: 2px; }
+.chat-msg.streaming { border-left: 2px solid var(--healthy); }

@@ -1,7 +1,7 @@
 'use strict';
 
 const express = require('express');
-const { WebSocketServer } = require('ws');
+const { WebSocketServer, WebSocket } = require('ws');
 const http = require('http');
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -174,11 +174,49 @@ wss.on('connection', (ws) => {
         const stream = internalLogStreams.get(msg.instanceId);
         if (stream) stream.clients.delete(ws);
       }
+      if (msg.type === 'chat_subscribe') {
+        try {
+          const conn = await ensureGatewayWs(msg.instanceId);
+          conn.chatClients.add(ws);
+          ws._chatInstance = msg.instanceId;
+        } catch (e) {
+          ws.send(JSON.stringify({ type: 'chat_error', error: e.message }));
+        }
+      }
+      if (msg.type === 'chat_unsubscribe') {
+        const conn = gwConns.get(msg.instanceId);
+        if (conn) conn.chatClients.delete(ws);
+      }
+      if (msg.type === 'chat_send') {
+        try {
+          const conn = await ensureGatewayWs(msg.instanceId);
+          const res = await gwRequest(conn, 'chat.send', {
+            sessionKey: msg.sessionKey || 'agent:main:main',
+            message: msg.message,
+            idempotencyKey: crypto.randomUUID(),
+          });
+          ws.send(JSON.stringify({ type: 'chat_send_result', instanceId: msg.instanceId, payload: res }));
+        } catch (e) {
+          ws.send(JSON.stringify({ type: 'chat_error', instanceId: msg.instanceId, error: e.message }));
+        }
+      }
+      if (msg.type === 'chat_history') {
+        try {
+          const conn = await ensureGatewayWs(msg.instanceId);
+          const res = await gwRequest(conn, 'chat.history', {
+            sessionKey: msg.sessionKey || 'agent:main:main',
+          });
+          ws.send(JSON.stringify({ type: 'chat_history_result', instanceId: msg.instanceId, payload: res }));
+        } catch (e) {
+          ws.send(JSON.stringify({ type: 'chat_error', instanceId: msg.instanceId, error: e.message }));
+        }
+      }
     } catch {}
   });
 
   ws.on('close', () => {
     clients.delete(ws);
+    gwConns.forEach(c => c.chatClients.delete(ws));
     logStreams.forEach(s => s.clients.delete(ws));
     internalLogStreams.forEach(s => s.clients.delete(ws));
     pendingLogSubs.forEach(s => s.delete(ws));
@@ -783,6 +821,84 @@ app.post('/api/pairing/approve', (req, res) => {
   proc.on('exit', code => { res.write(`\n[exit ${code}]\n`); res.end(); });
   proc.on('error', e => { res.write(`[error: ${e.message}]\n`); res.end(); });
 });
+
+// ── Gateway WS proxy (chat) ────────────────────────────────────────────────
+
+const gwConns = new Map(); // instanceId → { ws, ready, pending, reqId }
+
+function getGatewayToken(instanceId) {
+  try {
+    const cfg = JSON.parse(fs.readFileSync(path.join(DATA_DIR, `instance-${instanceId}`, 'openclaw.json'), 'utf8'));
+    return cfg.gateway?.auth?.token || null;
+  } catch { return null; }
+}
+
+function ensureGatewayWs(instanceId) {
+  if (gwConns.has(instanceId)) {
+    const c = gwConns.get(instanceId);
+    if (c.ws.readyState === WebSocket.OPEN) return Promise.resolve(c);
+    gwConns.delete(instanceId);
+  }
+  const inst = INSTANCES.find(i => i.id === instanceId);
+  if (!inst) return Promise.reject(new Error('unknown instance'));
+  const token = getGatewayToken(instanceId);
+  if (!token) return Promise.reject(new Error('no gateway token'));
+
+  return new Promise((resolve, reject) => {
+    const ws = new WebSocket(`ws://${inst.name}:${inst.internalPort}`, {
+      headers: { Origin: `http://${inst.name}:${inst.internalPort}` },
+    });
+    const conn = { ws, ready: false, pending: new Map(), reqId: 0, chatClients: new Set() };
+
+    ws.on('message', (raw) => {
+      let msg;
+      try { msg = JSON.parse(raw); } catch { return; }
+
+      if (msg.event === 'connect.challenge') {
+        ws.send(JSON.stringify({
+          type: 'req', id: '__connect__', method: 'connect',
+          params: {
+            minProtocol: 3, maxProtocol: 3,
+            client: { id: 'openclaw-control-ui', version: '1.0', platform: 'linux', mode: 'webchat' },
+            role: 'operator',
+            scopes: ['operator.read', 'operator.write', 'operator.admin'],
+            auth: { token },
+            caps: ['tool-events'],
+          },
+        }));
+        return;
+      }
+      if (msg.type === 'res' && msg.id === '__connect__') {
+        if (msg.ok) { conn.ready = true; gwConns.set(instanceId, conn); resolve(conn); }
+        else { reject(new Error(msg.error?.message || 'connect failed')); ws.close(); }
+        return;
+      }
+      if (msg.type === 'res' && conn.pending.has(msg.id)) {
+        conn.pending.get(msg.id)(msg);
+        conn.pending.delete(msg.id);
+        return;
+      }
+      // Forward chat events to subscribed MC clients
+      if (msg.type === 'event' && (msg.event === 'chat' || msg.event === 'session.message')) {
+        const fwd = JSON.stringify({ type: 'chat_event', instanceId, event: msg.event, payload: msg.payload });
+        conn.chatClients.forEach(c => { if (c.readyState === 1) c.send(fwd); });
+      }
+    });
+
+    ws.on('error', () => {});
+    ws.on('close', () => { gwConns.delete(instanceId); });
+    setTimeout(() => reject(new Error('gateway connect timeout')), 10000);
+  });
+}
+
+function gwRequest(conn, method, params) {
+  const id = `mc_${++conn.reqId}`;
+  return new Promise((resolve, reject) => {
+    conn.pending.set(id, resolve);
+    conn.ws.send(JSON.stringify({ type: 'req', id, method, params }));
+    setTimeout(() => { conn.pending.delete(id); reject(new Error('timeout')); }, 30000);
+  });
+}
 
 // ── Start ──────────────────────────────────────────────────────────────────
 

@@ -67,6 +67,10 @@ function connectWS() {
       case 'internal_log':  onInternalLogLine(msg);      break;
       case 'pairings':      onPairings(msg.payload);     break;
       case 'pairing_code':  onNewPairing(msg);           break;
+      case 'chat_event':    onChatEvent(msg);            break;
+      case 'chat_send_result': onChatSendResult(msg);    break;
+      case 'chat_history_result': onChatHistory(msg);    break;
+      case 'chat_error':    onChatError(msg);            break;
     }
   });
 }
@@ -877,3 +881,105 @@ async function init() {
 }
 
 init();
+
+// ── Chat ───────────────────────────────────────────────────────────────────
+
+let chatInstance = null;
+let chatStreaming = null; // element currently being streamed into
+
+function chatSelectInstance(id) {
+  // Unsubscribe from previous
+  if (chatInstance) ws.send(JSON.stringify({ type: 'chat_unsubscribe', instanceId: chatInstance }));
+
+  chatInstance = id;
+  document.querySelectorAll('.chat-inst-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.instance) === id));
+  document.getElementById('chat-input').disabled = false;
+  document.getElementById('btn-chat-send').disabled = false;
+  document.getElementById('chat-messages').innerHTML = '';
+  document.getElementById('chat-status').textContent = `Connecting to ${INSTANCE_META[id]?.label || id}…`;
+
+  // Subscribe and load history
+  ws.send(JSON.stringify({ type: 'chat_subscribe', instanceId: id }));
+  ws.send(JSON.stringify({ type: 'chat_history', instanceId: id }));
+}
+
+document.querySelectorAll('.chat-inst-btn').forEach(btn => {
+  btn.addEventListener('click', () => chatSelectInstance(parseInt(btn.dataset.instance)));
+});
+
+function appendChatMsg(role, text, cls) {
+  const box = document.getElementById('chat-messages');
+  const el = document.createElement('div');
+  el.className = `chat-msg ${role} ${cls || ''}`;
+  el.innerHTML = `<div class="chat-role">${role}</div>`;
+  const content = document.createElement('span');
+  content.textContent = text;
+  el.appendChild(content);
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+  return el;
+}
+
+function sendChat() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text || !chatInstance) return;
+  input.value = '';
+  appendChatMsg('user', text);
+  ws.send(JSON.stringify({ type: 'chat_send', instanceId: chatInstance, message: text }));
+}
+
+document.getElementById('btn-chat-send').addEventListener('click', sendChat);
+document.getElementById('chat-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+});
+
+function onChatEvent(msg) {
+  if (msg.instanceId !== chatInstance) return;
+  const p = msg.payload;
+  if (!p || !p.message) return;
+  const text = (p.message.content || []).filter(c => c.type === 'text').map(c => c.text).join('');
+  if (p.state === 'delta') {
+    if (!chatStreaming) {
+      chatStreaming = appendChatMsg('assistant', '', 'streaming');
+    }
+    chatStreaming.querySelector('span').textContent = text;
+    document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+  }
+  if (p.state === 'final') {
+    if (chatStreaming) {
+      chatStreaming.querySelector('span').textContent = text;
+      chatStreaming.classList.remove('streaming');
+      chatStreaming = null;
+    } else {
+      appendChatMsg('assistant', text);
+    }
+  }
+}
+
+function onChatSendResult(msg) {
+  if (msg.payload?.ok === false) {
+    appendChatMsg('assistant', `Error: ${msg.payload.error?.message || 'unknown error'}`);
+  }
+}
+
+function onChatHistory(msg) {
+  if (msg.instanceId !== chatInstance) return;
+  const box = document.getElementById('chat-messages');
+  box.innerHTML = '';
+  const messages = msg.payload?.payload?.messages || msg.payload?.payload || [];
+  if (Array.isArray(messages)) {
+    messages.forEach(m => {
+      const text = Array.isArray(m.content)
+        ? m.content.filter(c => c.type === 'text').map(c => c.text).join('')
+        : (typeof m.content === 'string' ? m.content : '');
+      if (text) appendChatMsg(m.role || 'assistant', text);
+    });
+  }
+  document.getElementById('chat-status').textContent = `Connected to ${INSTANCE_META[chatInstance]?.label || chatInstance}`;
+}
+
+function onChatError(msg) {
+  document.getElementById('chat-status').textContent = `Error: ${msg.error}`;
+  toast(`Chat error: ${msg.error}`, 'error');
+}

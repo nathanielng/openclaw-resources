@@ -422,6 +422,11 @@ document.querySelectorAll('.log-filter').forEach(btn => {
 
     if (filter === 'all') {
       delete box.dataset.filter;
+      // Unsubscribe from any active internal log streams
+      activeInternalStreams.forEach(id => {
+        ws.send(JSON.stringify({ type: 'unsubscribe_internal_logs', instanceId: id }));
+      });
+      activeInternalStreams.clear();
     } else {
       box.dataset.filter = filter;
     }
@@ -429,11 +434,42 @@ document.querySelectorAll('.log-filter').forEach(btn => {
     document.querySelectorAll('.log-filter').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
 
+    updateInternalLogBar(filter);
+
     if (document.getElementById('auto-scroll').checked) {
       box.scrollTop = box.scrollHeight;
     }
   });
 });
+
+function updateInternalLogBar(filter) {
+  const bar = document.getElementById('internal-log-bar');
+  if (filter === 'all' || !INSTANCE_META[filter]) {
+    bar.style.display = 'none';
+    return;
+  }
+  const id = parseInt(filter);
+  const meta = INSTANCE_META[id];
+  const logPath = `/tmp/openclaw/openclaw-${new Date().toISOString().slice(0, 10)}.log`;
+  const active = activeInternalStreams.has(id);
+  bar.style.display = 'flex';
+  bar.innerHTML = `
+    <button class="btn btn-ghost btn-sm${active ? ' active' : ''}" id="btn-toggle-internal" style="${active ? 'border-color:var(--healthy);color:var(--healthy)' : ''}">
+      ${active ? '● Internal logs ON' : '○ Internal logs OFF'}
+    </button>
+    <code style="font-size:11px;color:var(--muted);font-family:var(--font-mono)">openclaw-${id}:${logPath}</code>
+  `;
+  document.getElementById('btn-toggle-internal').addEventListener('click', () => {
+    if (activeInternalStreams.has(id)) {
+      activeInternalStreams.delete(id);
+      ws.send(JSON.stringify({ type: 'unsubscribe_internal_logs', instanceId: id }));
+    } else {
+      activeInternalStreams.add(id);
+      ws.send(JSON.stringify({ type: 'subscribe_internal_logs', instanceId: id }));
+    }
+    updateInternalLogBar(String(id));
+  });
+}
 
 document.getElementById('btn-clear-logs').addEventListener('click', () => {
   document.getElementById('log-box').innerHTML = '';
@@ -465,21 +501,6 @@ function onInternalLogLine({ instanceId, line, ts }) {
     box.scrollTop = box.scrollHeight;
   }
 }
-
-document.querySelectorAll('.internal-log-toggle').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const id = parseInt(btn.dataset.instance);
-    if (activeInternalStreams.has(id)) {
-      activeInternalStreams.delete(id);
-      btn.classList.remove('active');
-      ws.send(JSON.stringify({ type: 'unsubscribe_internal_logs', instanceId: id }));
-    } else {
-      activeInternalStreams.add(id);
-      btn.classList.add('active');
-      ws.send(JSON.stringify({ type: 'subscribe_internal_logs', instanceId: id }));
-    }
-  });
-});
 
 // ── Cost ───────────────────────────────────────────────────────────────────
 

@@ -358,6 +358,9 @@ body {
 }
 .log-line.internal.pairing { color: #f0c040; }
 
+/* Hide internal logs on the All view */
+#log-box:not([data-filter]) .log-line.internal { display: none; }
+
 #log-box[data-filter="1"] .log-line:not([data-instance="1"]) { display: none; }
 #log-box[data-filter="2"] .log-line:not([data-instance="2"]) { display: none; }
 #log-box[data-filter="3"] .log-line:not([data-instance="3"]) { display: none; }

@@ -143,13 +143,14 @@ wss.on('connection', (ws) => {
   ws.send(JSON.stringify({ type: 'cost_update', payload: costState }));
   ws.send(JSON.stringify({ type: 'pairings', payload: pendingPairings }));
 
-  ws.on('message', (data) => {
+  ws.on('message', async (data) => {
     try {
       const msg = JSON.parse(data.toString());
       if (msg.type === 'subscribe_logs') {
-        ensureLogStream(msg.instanceId);
+        await ensureLogStream(msg.instanceId);
         const stream = logStreams.get(msg.instanceId);
         if (stream) {
+          stream.history.forEach(m => { if (ws.readyState === 1) ws.send(m); });
           stream.clients.add(ws);
         } else {
           // Container not running yet — remember this subscriber
@@ -162,9 +163,12 @@ wss.on('connection', (ws) => {
         if (stream) stream.clients.delete(ws);
       }
       if (msg.type === 'subscribe_internal_logs') {
-        ensureInternalLogStream(msg.instanceId);
+        await ensureInternalLogStream(msg.instanceId);
         const stream = internalLogStreams.get(msg.instanceId);
-        if (stream) stream.clients.add(ws);
+        if (stream) {
+          stream.history.forEach(m => { if (ws.readyState === 1) ws.send(m); });
+          stream.clients.add(ws);
+        }
       }
       if (msg.type === 'unsubscribe_internal_logs') {
         const stream = internalLogStreams.get(msg.instanceId);
@@ -210,12 +214,14 @@ async function ensureLogStream(instanceId) {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
-  const entry = { proc, clients: new Set() };
+  const entry = { proc, clients: new Set(), history: [] };
   logStreams.set(instanceId, entry);
 
   const onLine = (line) => {
     const ts = new Date().toISOString();
     const msgStr = JSON.stringify({ type: 'log', instanceId, line, ts });
+    entry.history.push(msgStr);
+    if (entry.history.length > 200) entry.history.shift();
     entry.clients.forEach(ws => { if (ws.readyState === 1) ws.send(msgStr); });
 
     // Pairing code detection
@@ -283,7 +289,7 @@ async function ensureInternalLogStream(instanceId) {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
-  const entry = { proc, clients: new Set() };
+  const entry = { proc, clients: new Set(), history: [] };
   internalLogStreams.set(instanceId, entry);
 
   const onLine = (line) => {
@@ -302,6 +308,8 @@ async function ensureInternalLogStream(instanceId) {
 
     const ts = new Date().toISOString();
     const msgStr = JSON.stringify({ type: 'internal_log', instanceId, line: displayLine, ts });
+    entry.history.push(msgStr);
+    if (entry.history.length > 200) entry.history.shift();
     entry.clients.forEach(ws => { if (ws.readyState === 1) ws.send(msgStr); });
 
     // Pairing request detection from internal logs

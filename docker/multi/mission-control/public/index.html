@@ -113,11 +113,6 @@
         <button class="btn btn-ghost btn-sm log-filter"        data-filter="2">Coding</button>
         <button class="btn btn-ghost btn-sm log-filter"        data-filter="3">Comms</button>
         <button class="btn btn-ghost btn-sm log-filter"        data-filter="4">Ops</button>
-        <span style="border-left:1px solid var(--border);margin:0 4px"></span>
-        <button class="btn btn-ghost btn-sm internal-log-toggle" data-instance="1" title="Toggle internal logs for Research">📄 Research</button>
-        <button class="btn btn-ghost btn-sm internal-log-toggle" data-instance="2" title="Toggle internal logs for Coding">📄 Coding</button>
-        <button class="btn btn-ghost btn-sm internal-log-toggle" data-instance="3" title="Toggle internal logs for Comms">📄 Comms</button>
-        <button class="btn btn-ghost btn-sm internal-log-toggle" data-instance="4" title="Toggle internal logs for Ops">📄 Ops</button>
       </div>
       <div style="margin-left:auto;display:flex;gap:6px">
         <button class="btn btn-ghost btn-sm" id="btn-clear-logs">Clear</button>
@@ -125,6 +120,8 @@
           <input type="checkbox" id="auto-scroll" checked> Auto-scroll
         </label>
       </div>
+    </div>
+    <div id="internal-log-bar" style="display:none;padding:6px 12px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:12px;display:flex;align-items:center;gap:10px">
     </div>
     <div class="log-box" id="log-box"></div>
   </section>

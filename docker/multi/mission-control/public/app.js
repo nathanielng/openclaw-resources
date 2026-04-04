@@ -330,6 +330,9 @@ document.querySelectorAll('.log-filter').forEach(btn => {
 
     subscribedLogs = newSet;
 
+    // Clear stale log lines from previously-active streams
+    document.getElementById('log-box').innerHTML = '';
+
     document.querySelectorAll('.log-filter').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
   });

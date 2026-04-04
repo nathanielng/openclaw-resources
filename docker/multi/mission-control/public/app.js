@@ -232,10 +232,20 @@ function renderKanban() {
         actionHtml = `<button class="btn btn-success btn-sm card-done" data-id="${item.id}">✓ Mark Done</button>`;
       }
 
+      const editBtn = col === 'backlog' ? `<button class="card-edit" data-id="${item.id}" title="Edit">✎</button>` : '';
+
+      let responseHtml = '';
+      if (item.agentResponse) {
+        responseHtml = `<details class="card-response" style="margin-top:6px;font-size:11px">
+          <summary style="cursor:pointer;color:var(--muted)">Agent response</summary>
+          <div style="margin-top:4px;padding:6px;background:var(--surface2);border-radius:4px;white-space:pre-wrap;max-height:150px;overflow:auto;color:var(--text)">${escHtml(item.agentResponse)}</div>
+        </details>`;
+      }
+
       card.innerHTML = `
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px">
           <div class="card-title">${escHtml(item.title)}</div>
-          <button class="card-delete" data-id="${item.id}" title="Delete">×</button>
+          <div style="display:flex;gap:2px">${editBtn}<button class="card-delete" data-id="${item.id}" title="Delete">×</button></div>
         </div>
         ${item.prompt ? `<div class="card-prompt" style="font-size:11px;color:var(--muted);margin:4px 0;white-space:pre-wrap;max-height:60px;overflow:auto">${escHtml(item.prompt)}</div>` : ''}
         <div class="card-footer">
@@ -246,6 +256,7 @@ function renderKanban() {
           <span class="card-priority ${item.priority}">${item.priority}</span>
         </div>
         ${actionHtml ? `<div class="card-actions" style="margin-top:6px">${actionHtml}</div>` : ''}
+        ${responseHtml}
       `;
       card.addEventListener('dragstart', onDragStart);
       card.querySelector('.card-delete').addEventListener('click', (e) => {
@@ -256,6 +267,45 @@ function renderKanban() {
         e.stopPropagation();
         await api('PATCH', `/api/kanban/items/${item.id}`, { assignee: e.target.value || null });
       });
+      const editBtnEl = card.querySelector('.card-edit');
+      if (editBtnEl) {
+        editBtnEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          card.draggable = false;
+          card.innerHTML = `
+            <div class="form-group" style="margin-bottom:6px">
+              <input class="edit-title" value="${escHtml(item.title)}" style="width:100%;padding:4px 6px;font-size:12px;border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text)" />
+            </div>
+            <div class="form-group" style="margin-bottom:6px">
+              <textarea class="edit-prompt" rows="3" style="width:100%;padding:4px 6px;font-size:11px;border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text);resize:vertical" placeholder="Prompt for the agent…">${escHtml(item.prompt || '')}</textarea>
+            </div>
+            <div class="form-group" style="margin-bottom:6px">
+              <select class="edit-assignee" style="width:100%;padding:4px 6px;font-size:11px;border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text)">
+                <option value=""${!item.assignee ? ' selected' : ''}>Unassigned</option>
+                ${Object.entries(INSTANCE_META).map(([k, m]) => `<option value="${k}"${item.assignee == k ? ' selected' : ''}>${m.label}</option>`).join('')}
+              </select>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-primary btn-sm edit-save">Save</button>
+              <button class="btn btn-ghost btn-sm edit-cancel">Cancel</button>
+            </div>
+          `;
+          card.querySelector('.edit-save').addEventListener('click', async (ev) => {
+            ev.stopPropagation();
+            const title = card.querySelector('.edit-title').value.trim();
+            if (!title) { toast('Title is required', 'error'); return; }
+            await api('PATCH', `/api/kanban/items/${item.id}`, {
+              title,
+              prompt: card.querySelector('.edit-prompt').value.trim(),
+              assignee: card.querySelector('.edit-assignee').value || null,
+            });
+          });
+          card.querySelector('.edit-cancel').addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            renderKanban();
+          });
+        });
+      }
       const dispatchBtn = card.querySelector('.card-dispatch');
       if (dispatchBtn) {
         dispatchBtn.addEventListener('click', async (e) => {

@@ -289,7 +289,7 @@ body {
 .card-priority.medium { color: var(--degraded); }
 .card-priority.low    { color: var(--healthy); }
 
-.card-delete {
+.card-delete, .card-edit {
   background: none;
   border: none;
   color: var(--muted);
@@ -300,8 +300,9 @@ body {
   opacity: 0;
   transition: opacity 0.15s;
 }
-.kanban-card:hover .card-delete { opacity: 1; }
+.kanban-card:hover .card-delete, .kanban-card:hover .card-edit { opacity: 1; }
 .card-delete:hover { color: var(--dead); }
+.card-edit:hover { color: var(--healthy); }
 
 /* ── Add task form ─────────────────────────────────────────────────────── */
 .add-task-form {

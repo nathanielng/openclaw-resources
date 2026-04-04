@@ -258,11 +258,11 @@ function ensureGatewayBinding(instanceId) {
   const configPath = path.join(DATA_DIR, `instance-${instanceId}`, 'openclaw.json');
   let config;
   try { config = JSON.parse(fs.readFileSync(configPath, 'utf8')); } catch { return; }
-  if (config.gateway && config.gateway.binding === 'all') return;
+  if (config.gateway && config.gateway.binding === 'lan') return;
   if (!config.gateway) config.gateway = {};
-  config.gateway.binding = 'all';
+  config.gateway.binding = 'lan';
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
-  console.log(`[config] instance-${instanceId}: set gateway.binding = "all"`);
+  console.log(`[config] instance-${instanceId}: set gateway.binding = "lan"`);
 }
 
 // ── Docker Compose helpers ─────────────────────────────────────────────────

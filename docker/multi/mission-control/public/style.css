@@ -346,6 +346,8 @@ body {
 .log-line.error { color: var(--dead); }
 .log-line.warn  { color: var(--degraded); }
 
+.log-filter.active { border-color: var(--blue); background: #1a2a40; color: var(--blue); }
+
 #log-box[data-filter="1"] .log-line:not([data-instance="1"]) { display: none; }
 #log-box[data-filter="2"] .log-line:not([data-instance="2"]) { display: none; }
 #log-box[data-filter="3"] .log-line:not([data-instance="3"]) { display: none; }

@@ -252,6 +252,19 @@ function mergeEnvFile(filePath, vars) {
   fs.writeFileSync(filePath, content, { mode: 0o600 });
 }
 
+// Patch openclaw.json so the gateway binds to all interfaces (not just loopback),
+// which is required for mission-control to reach instances over the Docker network.
+function ensureGatewayBinding(instanceId) {
+  const configPath = path.join(DATA_DIR, `instance-${instanceId}`, 'openclaw.json');
+  let config;
+  try { config = JSON.parse(fs.readFileSync(configPath, 'utf8')); } catch { return; }
+  if (config.gateway && config.gateway.binding === 'lan') return;
+  if (!config.gateway) config.gateway = {};
+  config.gateway.binding = 'lan';
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
+  console.log(`[config] instance-${instanceId}: set gateway.binding = "lan"`);
+}
+
 // ── Docker Compose helpers ─────────────────────────────────────────────────
 
 function getProfiles(count) {
@@ -298,6 +311,7 @@ app.get('/api/instances', (_req, res) => {
 // Compose up
 app.post('/api/compose/up', (req, res) => {
   const count = Math.min(4, Math.max(2, parseInt(req.body.count) || 2));
+  INSTANCES.slice(0, count).forEach(inst => ensureGatewayBinding(inst.id));
   const profiles = getProfiles(count);
   const profileArgs = profiles.flatMap(p => ['--profile', p]);
   // --no-recreate: skip containers that are already running instead of conflicting on their names
@@ -337,6 +351,7 @@ app.post('/api/compose/up/:id', async (req, res) => {
     }
   }
 
+  ensureGatewayBinding(inst.id);
   const profileArgs = inst.profile ? ['--profile', inst.profile] : [];
   // --no-recreate: if the container exists but is stopped, start it; never conflict on an existing name
   const proc = spawn('docker', ['compose', '-f', COMPOSE_FILE, ...profileArgs, 'up', '-d', '--no-recreate', inst.name], {
@@ -484,5 +499,6 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`OpenClaw Mission Control → http://0.0.0.0:${PORT}`);
   console.log(`Compose file: ${COMPOSE_FILE}`);
   console.log(`Data dir:     ${DATA_DIR}`);
+  INSTANCES.forEach(inst => ensureGatewayBinding(inst.id));
   startHealthPolling();
 });

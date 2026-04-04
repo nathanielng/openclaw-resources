@@ -19,7 +19,7 @@ let healthData   = {};
 let costData     = {};
 let kanbanData   = { items: [] };
 let pairings     = [];
-let subscribedLogs = new Set([1]); // start streaming instance 1
+let subscribedLogs = new Set([1, 2, 3, 4]); // start streaming all instances
 let dragItemId   = null;
 let selectedCount = 2;
 let budget       = parseFloat(localStorage.getItem('budget') || '0') || 0;
@@ -308,19 +308,30 @@ function onLogLine({ instanceId, line, ts }) {
   }
 }
 
-// Log instance toggles
-document.querySelectorAll('.log-toggle').forEach(btn => {
+// Log filter buttons (All / Research / Coding / Comms / Ops)
+const ALL_LOG_IDS = [1, 2, 3, 4];
+
+document.querySelectorAll('.log-filter').forEach(btn => {
   btn.addEventListener('click', () => {
-    const id = parseInt(btn.dataset.id);
-    if (subscribedLogs.has(id)) {
-      subscribedLogs.delete(id);
-      btn.classList.remove('active');
-      ws && ws.readyState === 1 && ws.send(JSON.stringify({ type: 'unsubscribe_logs', instanceId: id }));
-    } else {
-      subscribedLogs.add(id);
-      btn.classList.add('active');
-      ws && ws.readyState === 1 && ws.send(JSON.stringify({ type: 'subscribe_logs', instanceId: id }));
-    }
+    const filter = btn.dataset.filter;
+    const newSet = filter === 'all' ? new Set(ALL_LOG_IDS) : new Set([parseInt(filter)]);
+
+    // Unsubscribe instances no longer in view
+    subscribedLogs.forEach(id => {
+      if (!newSet.has(id) && ws && ws.readyState === 1)
+        ws.send(JSON.stringify({ type: 'unsubscribe_logs', instanceId: id }));
+    });
+
+    // Subscribe to newly selected instances
+    newSet.forEach(id => {
+      if (!subscribedLogs.has(id) && ws && ws.readyState === 1)
+        ws.send(JSON.stringify({ type: 'subscribe_logs', instanceId: id }));
+    });
+
+    subscribedLogs = newSet;
+
+    document.querySelectorAll('.log-filter').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
   });
 });
 

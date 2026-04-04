@@ -47,7 +47,7 @@ services:
     container_name: openclaw-1
     restart: unless-stopped
     ports:
-      - "18789:18789"
+      - "127.0.0.1:18789:18789"
     volumes:
       - ${HOST_PROJECT_DIR:-.}/data/instance-1:/home/node/.openclaw
     env_file:
@@ -82,7 +82,7 @@ services:
     container_name: openclaw-2
     restart: unless-stopped
     ports:
-      - "18790:18789"
+      - "127.0.0.1:18790:18789"
     volumes:
       - ${HOST_PROJECT_DIR:-.}/data/instance-2:/home/node/.openclaw
     env_file:
@@ -120,7 +120,7 @@ services:
       - four
     restart: unless-stopped
     ports:
-      - "18791:18789"
+      - "127.0.0.1:18791:18789"
     volumes:
       - ${HOST_PROJECT_DIR:-.}/data/instance-3:/home/node/.openclaw
     env_file:
@@ -158,7 +158,7 @@ services:
       - four
     restart: unless-stopped
     ports:
-      - "18792:18789"
+      - "127.0.0.1:18792:18789"
     volumes:
       - ${HOST_PROJECT_DIR:-.}/data/instance-4:/home/node/.openclaw
     env_file:
@@ -193,7 +193,7 @@ services:
     container_name: openclaw-mission-control
     restart: unless-stopped
     ports:
-      - "4000:4000"
+      - "127.0.0.1:4000:4000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock  # needed to run docker compose commands
       - ${HOST_PROJECT_DIR:-.}:/workspace:ro        # compose file (read-only)

@@ -64,6 +64,7 @@ function connectWS() {
       case 'cost_update':   onCost(msg.payload);         break;
       case 'kanban_update': onKanban(msg.payload);       break;
       case 'log':           onLogLine(msg);              break;
+      case 'internal_log':  onInternalLogLine(msg);      break;
       case 'pairings':      onPairings(msg.payload);     break;
       case 'pairing_code':  onNewPairing(msg);           break;
     }
@@ -439,6 +440,48 @@ document.getElementById('btn-clear-logs').addEventListener('click', () => {
   document.getElementById('log-box').innerHTML = '';
 });
 
+// ── Internal log stream toggles ────────────────────────────────────────────
+
+const activeInternalStreams = new Set();
+
+function onInternalLogLine({ instanceId, line, ts }) {
+  const box  = document.getElementById('log-box');
+  const meta = INSTANCE_META[instanceId];
+  if (!meta) return;
+  const time = new Date(ts).toLocaleTimeString();
+
+  const isError = /error|fail|exception/i.test(line);
+  const isWarn  = /warn|warning/i.test(line);
+  const isPairing = /pairing request/i.test(line);
+
+  const el = document.createElement('span');
+  el.className = `log-line internal${isError ? ' error' : isWarn ? ' warn' : isPairing ? ' pairing' : ''}`;
+  el.dataset.instance = instanceId;
+  el.innerHTML = `<span class="ts">${time}</span><span class="id" style="color:${meta.color}">[${meta.label}]</span><span class="internal-tag">internal</span>${escHtml(line)}`;
+
+  box.appendChild(el);
+  while (box.children.length > 2000) box.removeChild(box.firstChild);
+
+  if (document.getElementById('auto-scroll').checked) {
+    box.scrollTop = box.scrollHeight;
+  }
+}
+
+document.querySelectorAll('.internal-log-toggle').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const id = parseInt(btn.dataset.instance);
+    if (activeInternalStreams.has(id)) {
+      activeInternalStreams.delete(id);
+      btn.classList.remove('active');
+      ws.send(JSON.stringify({ type: 'unsubscribe_internal_logs', instanceId: id }));
+    } else {
+      activeInternalStreams.add(id);
+      btn.classList.add('active');
+      ws.send(JSON.stringify({ type: 'subscribe_internal_logs', instanceId: id }));
+    }
+  });
+});
+
 // ── Cost ───────────────────────────────────────────────────────────────────
 
 function onCost(data) {
@@ -562,6 +605,28 @@ function updatePairingBadge() {
     badge.classList.add('hidden');
   }
 }
+
+// Manual pairing approve
+document.getElementById('btn-approve-pairing').addEventListener('click', async () => {
+  const instanceId = document.getElementById('pairing-instance').value;
+  const pairingCode = document.getElementById('pairing-code-input').value.trim();
+  if (!pairingCode) { toast('Enter a pairing code', 'error'); return; }
+
+  const btn = document.getElementById('btn-approve-pairing');
+  const out = document.getElementById('pairing-output');
+  btn.disabled = true;
+  btn.textContent = '…';
+  try {
+    await streamingPost('/api/pairing/approve', { instanceId: parseInt(instanceId), pairingCode }, out);
+    document.getElementById('pairing-code-input').value = '';
+    toast('Pairing approved', 'success');
+  } catch (err) {
+    toast('Pairing failed: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Approve';
+  }
+});
 
 // Ping All button (Fleet tab)
 document.getElementById('btn-ping-all').addEventListener('click', async (e) => {

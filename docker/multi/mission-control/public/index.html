@@ -113,6 +113,11 @@
         <button class="btn btn-ghost btn-sm log-filter"        data-filter="2">Coding</button>
         <button class="btn btn-ghost btn-sm log-filter"        data-filter="3">Comms</button>
         <button class="btn btn-ghost btn-sm log-filter"        data-filter="4">Ops</button>
+        <span style="border-left:1px solid var(--border);margin:0 4px"></span>
+        <button class="btn btn-ghost btn-sm internal-log-toggle" data-instance="1" title="Toggle internal logs for Research">📄 Research</button>
+        <button class="btn btn-ghost btn-sm internal-log-toggle" data-instance="2" title="Toggle internal logs for Coding">📄 Coding</button>
+        <button class="btn btn-ghost btn-sm internal-log-toggle" data-instance="3" title="Toggle internal logs for Comms">📄 Comms</button>
+        <button class="btn btn-ghost btn-sm internal-log-toggle" data-instance="4" title="Toggle internal logs for Ops">📄 Ops</button>
       </div>
       <div style="margin-left:auto;display:flex;gap:6px">
         <button class="btn btn-ghost btn-sm" id="btn-clear-logs">Clear</button>
@@ -158,6 +163,32 @@
     </p>
     <div class="pairing-list" id="pairing-list">
       <div class="empty-state">No pending pairing codes detected</div>
+    </div>
+
+    <div style="margin-top:24px;border-top:1px solid var(--border);padding-top:16px">
+      <span class="section-title" style="font-size:14px">Manual Pairing</span>
+      <p class="text-muted text-sm" style="margin:8px 0 12px">
+        Approve a Telegram pairing code by selecting an instance and entering the code.
+      </p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <div class="form-group" style="min-width:140px">
+          <label>Instance</label>
+          <select id="pairing-instance">
+            <option value="1">openclaw-1 | Research</option>
+            <option value="2">openclaw-2 | Coding</option>
+            <option value="3">openclaw-3 | Comms</option>
+            <option value="4">openclaw-4 | Ops</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex:1;min-width:160px">
+          <label>Pairing Code</label>
+          <input type="text" id="pairing-code-input" placeholder="Enter pairing code" />
+        </div>
+        <div class="form-group" style="align-self:flex-end">
+          <button class="btn btn-primary btn-sm" id="btn-approve-pairing">Approve</button>
+        </div>
+      </div>
+      <pre class="compose-output" id="pairing-output" style="display:none"></pre>
     </div>
   </section>
 

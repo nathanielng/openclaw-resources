@@ -64,6 +64,28 @@ function startHealthPolling() {
     setInterval(() => pollHealth(inst), 10000);
   });
   setInterval(() => broadcast({ type: 'health', payload: healthState }), 5000);
+
+  // Periodically try to connect pending log subscribers to newly started containers
+  setInterval(async () => {
+    for (const [instanceId, subs] of pendingLogSubs) {
+      // Prune disconnected clients
+      for (const ws of subs) { if (ws.readyState !== 1) subs.delete(ws); }
+      if (subs.size === 0) { pendingLogSubs.delete(instanceId); continue; }
+      if (logStreams.has(instanceId)) {
+        // Stream exists now — move pending subs over
+        const stream = logStreams.get(instanceId);
+        subs.forEach(ws => stream.clients.add(ws));
+        pendingLogSubs.delete(instanceId);
+      } else {
+        await ensureLogStream(instanceId);
+        const stream = logStreams.get(instanceId);
+        if (stream) {
+          subs.forEach(ws => stream.clients.add(ws));
+          pendingLogSubs.delete(instanceId);
+        }
+      }
+    }
+  }, 10000);
 }
 
 // ── Cost / token tracking ──────────────────────────────────────────────────
@@ -127,10 +149,25 @@ wss.on('connection', (ws) => {
       if (msg.type === 'subscribe_logs') {
         ensureLogStream(msg.instanceId);
         const stream = logStreams.get(msg.instanceId);
-        if (stream) stream.clients.add(ws);
+        if (stream) {
+          stream.clients.add(ws);
+        } else {
+          // Container not running yet — remember this subscriber
+          if (!pendingLogSubs.has(msg.instanceId)) pendingLogSubs.set(msg.instanceId, new Set());
+          pendingLogSubs.get(msg.instanceId).add(ws);
+        }
       }
       if (msg.type === 'unsubscribe_logs') {
         const stream = logStreams.get(msg.instanceId);
+        if (stream) stream.clients.delete(ws);
+      }
+      if (msg.type === 'subscribe_internal_logs') {
+        ensureInternalLogStream(msg.instanceId);
+        const stream = internalLogStreams.get(msg.instanceId);
+        if (stream) stream.clients.add(ws);
+      }
+      if (msg.type === 'unsubscribe_internal_logs') {
+        const stream = internalLogStreams.get(msg.instanceId);
         if (stream) stream.clients.delete(ws);
       }
     } catch {}
@@ -139,6 +176,8 @@ wss.on('connection', (ws) => {
   ws.on('close', () => {
     clients.delete(ws);
     logStreams.forEach(s => s.clients.delete(ws));
+    internalLogStreams.forEach(s => s.clients.delete(ws));
+    pendingLogSubs.forEach(s => s.delete(ws));
   });
 });
 
@@ -150,6 +189,7 @@ function broadcast(msg) {
 // ── Log streaming ──────────────────────────────────────────────────────────
 
 const logStreams = new Map();
+const pendingLogSubs = new Map(); // instanceId → Set<ws> — subscribers waiting for container to start
 
 // Patterns for extracting pairing codes from OpenClaw logs
 const PAIRING_RE = /pairing code[:\s]+([A-Z0-9]{6,10})/i;
@@ -184,6 +224,7 @@ async function ensureLogStream(instanceId) {
       const code = pm[1];
       if (!pendingPairings.find(p => p.code === code)) {
         pendingPairings.push({ code, instanceId, ts });
+        savePairings();
         broadcast({ type: 'pairings', payload: pendingPairings });
       }
     }
@@ -230,6 +271,99 @@ async function ensureLogStream(instanceId) {
   });
 }
 
+// ── Internal log file streaming ────────────────────────────────────────────
+
+const internalLogStreams = new Map();
+
+async function ensureInternalLogStream(instanceId) {
+  if (internalLogStreams.has(instanceId)) return;
+  const inst = INSTANCES.find(i => i.id === instanceId);
+  if (!inst) return;
+
+  const status = await getContainerStatus(inst.name);
+  if (status !== 'running') return;
+  if (internalLogStreams.has(instanceId)) return;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const logPath = `/tmp/openclaw/openclaw-${today}.log`;
+
+  const proc = spawn('docker', ['exec', inst.name, 'tail', '-n', '200', '-f', logPath], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  const entry = { proc, clients: new Set() };
+  internalLogStreams.set(instanceId, entry);
+
+  const onLine = (line) => {
+    // Parse structured JSON log lines
+    let parsed = null;
+    let displayLine = line;
+    try {
+      const obj = JSON.parse(line);
+      const msg = obj['2'] || '';
+      const meta = obj['1'];
+      const file = obj._meta?.path?.fileName || '';
+      const time = obj.time || '';
+      displayLine = `${time} [${file}] ${msg}${meta && typeof meta === 'object' ? ' ' + JSON.stringify(meta) : ''}`;
+      parsed = obj;
+    } catch {}
+
+    const ts = new Date().toISOString();
+    const msgStr = JSON.stringify({ type: 'internal_log', instanceId, line: displayLine, ts });
+    entry.clients.forEach(ws => { if (ws.readyState === 1) ws.send(msgStr); });
+
+    // Pairing request detection from internal logs
+    if (parsed && typeof parsed['2'] === 'string' && PAIRING_REQUEST_RE.test(parsed['2'])) {
+      const meta = parsed['1'] || {};
+      const key = `${instanceId}-${meta.chatId || meta.username || ts}`;
+      if (!pendingPairings.find(p => p.code === key)) {
+        pendingPairings.push({
+          code: key,
+          instanceId,
+          ts,
+          username: meta.username || null,
+          firstName: meta.firstName || null,
+          chatId: meta.chatId || null,
+        });
+        savePairings();
+        broadcast({ type: 'pairings', payload: pendingPairings });
+      }
+    }
+  };
+
+  let buf = '';
+  proc.stdout.on('data', (chunk) => {
+    buf += chunk.toString();
+    let nl;
+    while ((nl = buf.indexOf('\n')) !== -1) {
+      onLine(buf.slice(0, nl));
+      buf = buf.slice(nl + 1);
+    }
+  });
+
+  proc.on('exit', () => {
+    const subscribers = entry.clients;
+    internalLogStreams.delete(instanceId);
+    if (subscribers.size === 0) return;
+    const retryInterval = setInterval(async () => {
+      const alive = [...subscribers].filter(ws => ws.readyState === 1);
+      if (alive.length === 0 || internalLogStreams.has(instanceId)) {
+        clearInterval(retryInterval);
+        return;
+      }
+      await ensureInternalLogStream(instanceId);
+      const stream = internalLogStreams.get(instanceId);
+      if (stream) {
+        alive.forEach(ws => stream.clients.add(ws));
+        clearInterval(retryInterval);
+      }
+    }, 10000);
+  });
+}
+
+// Regex for pairing request detection in internal logs
+const PAIRING_REQUEST_RE = /telegram pairing request/i;
+
 // ── Kanban ─────────────────────────────────────────────────────────────────
 
 const KANBAN_FILE = path.join(MC_DATA, 'kanban.json');
@@ -246,6 +380,19 @@ function saveKanban(data) {
 // ── Pairing codes ──────────────────────────────────────────────────────────
 
 const pendingPairings = [];
+
+const PAIRINGS_FILE = path.join(MC_DATA, 'pairings.json');
+
+function loadPairings() {
+  try { return JSON.parse(fs.readFileSync(PAIRINGS_FILE, 'utf8')); } catch { return []; }
+}
+
+function savePairings() {
+  fs.writeFileSync(PAIRINGS_FILE, JSON.stringify(pendingPairings, null, 2));
+}
+
+// Hydrate from disk
+pendingPairings.push(...loadPairings());
 
 // ── Config helpers ─────────────────────────────────────────────────────────
 
@@ -605,8 +752,36 @@ app.get('/api/pairings', (_req, res) => res.json(pendingPairings));
 app.delete('/api/pairings/:code', (req, res) => {
   const idx = pendingPairings.findIndex(p => p.code === req.params.code);
   if (idx !== -1) pendingPairings.splice(idx, 1);
+  savePairings();
   broadcast({ type: 'pairings', payload: pendingPairings });
   res.json({ ok: true });
+});
+
+// Manual pairing approve — runs: openclaw pairing approve telegram <code>
+app.post('/api/pairing/approve', (req, res) => {
+  const { instanceId, pairingCode } = req.body;
+  if (!instanceId || !pairingCode) return res.status(400).json({ error: 'instanceId and pairingCode required' });
+
+  const inst = INSTANCES.find(i => i.id === parseInt(instanceId));
+  if (!inst) return res.status(404).json({ error: 'unknown instance' });
+
+  const cliService = `openclaw-${inst.id}-cli`;
+  const cliProfiles = { 1: 'cli', 2: 'cli', 3: 'cli-three', 4: 'cli-four' };
+  const profileArgs = ['--profile', cliProfiles[inst.id] || 'cli'];
+
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Transfer-Encoding', 'chunked');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+
+  const proc = spawn('docker', [
+    'compose', '-f', COMPOSE_FILE, ...profileArgs,
+    'run', '--rm', cliService, 'pairing', 'approve', 'telegram', pairingCode,
+  ], { cwd: COMPOSE_PROJECT_DIR, env: { ...process.env } });
+
+  proc.stdout.on('data', d => res.write(d));
+  proc.stderr.on('data', d => res.write(d));
+  proc.on('exit', code => { res.write(`\n[exit ${code}]\n`); res.end(); });
+  proc.on('error', e => { res.write(`[error: ${e.message}]\n`); res.end(); });
 });
 
 // ── Start ──────────────────────────────────────────────────────────────────

@@ -6,24 +6,24 @@ This document presents the top 50 AI models available through OpenRouter, ranked
 
 ## Data Source
 
-- **Benchmark Data**: PinchBench evaluation metrics
-- **Pricing Data**: OpenRouter API pricing (as of April 2026)
+- **Benchmark Data**: [PinchBench](https://pinchbench.com/?score=average) evaluation metrics [on 23 tasks](https://pinchbench.com/about) across different categories
+- **Pricing Data**: [OpenRouter API pricing](https://openrouter.ai/models) (as of 5 April 2026)
 - **Model Availability**: OpenRouter (https://openrouter.ai)
 
 The benchmark scores represent average performance across multiple tasks, with "Best %" indicating the highest performance on any individual task and "Avg %" showing the overall average performance.
 
 ---
 
-## Model Rankings
+## Model Rankings & Costs 🦞 PinchBench 🛜 OpenRouter
 
 | Rank | Model ID | Best % | Avg % | Input ($/M tokens) | Output ($/M tokens) |
 |------|----------|--------|-------|-------------------|-------------------|
-| 1 | arcee-ai/trinity-large-thinking | 91.9% | 91.9% | $0.22 | $0.85 |
-| 2 | qwen/qwen3.6-plus-preview | 88.6% | 84.0% | Free | Free |
+| 1 | 🦀 arcee-ai/trinity-large-thinking | 91.9% | 91.9% | $0.22 | $0.85 |
+| 2 | qwen/qwen3.6-plus:free | 88.6% | 84.0% | Free | Free |
 | 3 | minimax/minimax-m2.7 | 89.8% | 83.2% | $0.30 | $1.20 |
-| 4 | anthropic/claude-opus-4.6 | 93.3% | 83.1% | $5.00 | $25.00 |
+| 4 | 🦞 anthropic/claude-opus-4.6 | 93.3% | 83.1% | $5.00 | $25.00 |
 | 5 | xiaomi/mimo-v2-omni | 85.6% | 81.9% | $0.40 | $2.00 |
-| 6 | openai/gpt-5.4 | 90.5% | 81.7% | $2.50 | $15.00 |
+| 6 | 🦐 openai/gpt-5.4 | 90.5% | 81.7% | $2.50 | $15.00 |
 | 7 | z-ai/glm-5-turbo | 86.5% | 81.6% | $1.20 | $4.00 |
 | 8 | anthropic/claude-sonnet-4.6 | 88.0% | 81.1% | $3.00 | $15.00 |
 | 9 | anthropic/claude-sonnet-4.5 | 88.6% | 81.0% | $3.00 | $15.00 |
@@ -139,4 +139,4 @@ The benchmark scores represent average performance across multiple tasks, with "
 - Consider your specific use case: raw performance, cost, latency, or a combination
 - All models are available through OpenRouter's unified API
 
-For more information, visit [OpenRouter](https://openrouter.ai).
+Pricing data is available from: [OpenRouter](https://openrouter.ai/models) and [Pinchbench API](https://github.com/pinchbench/api)

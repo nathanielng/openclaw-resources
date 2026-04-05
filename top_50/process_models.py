@@ -1,20 +1,60 @@
 #!/usr/bin/env python3
 """
-Process OpenRouter models and PinchBench data:
-1. Fetch OpenRouter API models
-2. Merge with PinchBench benchmark data
-3. Generate top 50 models by Avg %
+Process OpenRouter and PinchBench data:
+1. Fetch PinchBench leaderboard (top 50 models)
+2. Fetch OpenRouter API models
+3. Merge with PinchBench benchmark data
+4. Generate top 50 models by Avg %
 """
 
 import urllib.request
 import csv
 import json
 import re
+import ssl
 import subprocess
 from typing import List, Dict, Any
 
 # ============================================================================
-# SECTION 1: Fetch OpenRouter Models
+# SECTION 1: Fetch PinchBench Leaderboard
+# ============================================================================
+
+def fetch_leaderboard() -> Dict[str, Any]:
+    """Fetch leaderboard data from PinchBench API"""
+    url = "https://api.pinchbench.com/api/leaderboard"
+
+    # Try using curl first
+    try:
+        result = subprocess.run(['curl', '-s', url], capture_output=True, text=True, check=True)
+        data = json.loads(result.stdout)
+        return data
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        # Fallback to urllib with SSL context
+        ssl_context = ssl._create_unverified_context()
+        with urllib.request.urlopen(url, context=ssl_context) as response:
+            data = json.loads(response.read().decode())
+        return data
+
+def get_top_pinchbench_models(response: Dict, limit: int = 50) -> List[Dict]:
+    """Extract top N models from leaderboard response"""
+    if 'leaderboard' in response:
+        models = response['leaderboard']
+    elif 'data' in response:
+        models = response['data']
+    else:
+        models = response.get('results', [])
+
+    # Take top N models
+    return models[:limit]
+
+def save_leaderboard_json(response: Dict, output_file: str = 'pinchbench-leaderboard.json'):
+    """Save full leaderboard response to JSON"""
+    with open(output_file, 'w', encoding='utf-8') as f:
+        json.dump(response, f, indent=2)
+    return output_file
+
+# ============================================================================
+# SECTION 2: Fetch OpenRouter Models
 # ============================================================================
 
 def fetch_models() -> List[Dict[str, Any]]:
@@ -28,7 +68,6 @@ def fetch_models() -> List[Dict[str, Any]]:
         return data.get('data', [])
     except (FileNotFoundError, subprocess.CalledProcessError):
         # Fallback to urllib with SSL context
-        import ssl
         ssl_context = ssl._create_unverified_context()
         with urllib.request.urlopen(url, context=ssl_context) as response:
             data = json.loads(response.read().decode())
@@ -78,7 +117,7 @@ def models_to_csv(models: List[Dict], output_file: str = 'openrouter_models.csv'
     return output_file
 
 # ============================================================================
-# SECTION 2: Merge with PinchBench
+# SECTION 3: Merge with PinchBench
 # ============================================================================
 
 def clean_model_id(model_str: str) -> str:
@@ -180,7 +219,7 @@ def write_merged(merged: List[Dict], output_file: str = 'merged_models.csv'):
     return output_file
 
 # ============================================================================
-# SECTION 3: Create Top 50
+# SECTION 4: Create Top 50
 # ============================================================================
 
 def convert_price_to_per_million(price_str: str) -> str:
@@ -253,21 +292,29 @@ def write_top50(models: List[Dict], output_file: str = 'top50_models.csv'):
 
 if __name__ == '__main__':
     print("="*100)
-    print("PROCESSING OPENROUTER MODELS AND PINCHBENCH DATA")
+    print("PROCESSING OPENROUTER AND PINCHBENCH DATA")
     print("="*100)
 
-    # Step 1: Fetch OpenRouter models
-    print("\n[1/5] Fetching OpenRouter models...")
+    # Step 1: Fetch PinchBench leaderboard
+    print("\n[1/6] Fetching PinchBench leaderboard (top 50)...")
+    leaderboard = fetch_leaderboard()
+    top_pinch = get_top_pinchbench_models(leaderboard, limit=50)
+    print(f"✓ Found {len(top_pinch)} models")
+    save_leaderboard_json(leaderboard)
+    print("✓ Saved full leaderboard to pinchbench-leaderboard.json")
+
+    # Step 2: Fetch OpenRouter models
+    print("\n[2/6] Fetching OpenRouter models...")
     models = fetch_models()
     print(f"✓ Found {len(models)} models")
 
-    # Step 2: Save OpenRouter models to CSV
-    print("\n[2/5] Saving OpenRouter models...")
+    # Step 3: Save OpenRouter models to CSV
+    print("\n[3/6] Saving OpenRouter models...")
     models_to_csv(models)
     print("✓ Saved to openrouter_models.csv")
 
-    # Step 3: Merge with PinchBench
-    print("\n[3/5] Merging with PinchBench data...")
+    # Step 4: Merge with PinchBench
+    print("\n[4/6] Merging with PinchBench data...")
     pinch = read_pinchbench('pinchbench.csv')
     print(f"✓ Found {len(pinch)} models in pinchbench.csv")
     openrouter = read_openrouter('openrouter_models.csv')
@@ -275,13 +322,13 @@ if __name__ == '__main__':
     merged = merge_models(pinch, openrouter)
     print(f"✓ Merged to {len(merged)} unique models")
 
-    # Step 4: Write merged models
-    print("\n[4/5] Writing merged models...")
+    # Step 5: Write merged models
+    print("\n[5/6] Writing merged models...")
     write_merged(merged)
     print("✓ Saved to merged_models.csv")
 
-    # Step 5: Create and write top 50
-    print("\n[5/5] Creating top 50 models...")
+    # Step 6: Create and write top 50
+    print("\n[6/6] Creating top 50 models...")
     top_50 = create_top50(merged)
     write_top50(top_50)
     print(f"✓ Saved to top50_models.csv")
@@ -294,5 +341,23 @@ if __name__ == '__main__':
         print(f"{i:2d}. {model['Model ID']:<40} Best: {model['Best %']:<8} Avg: {model['Avg %']:<8}")
 
     print("\n" + "="*100)
+    print("LIVE PINCHBENCH LEADERBOARD (Top 10)")
+    print("="*100)
+    for i, model in enumerate(top_pinch[:10], 1):
+        model_id = model.get('model') or model.get('model_id') or 'Unknown'
+        best_score = model.get('best_score_percentage', 0)
+        avg_score = model.get('average_score_percentage', 0)
+        submissions = model.get('submission_count', 0)
+
+        # Convert to percentage if needed
+        if best_score and best_score <= 1:
+            best_score = best_score * 100
+        if avg_score and avg_score <= 1:
+            avg_score = avg_score * 100
+
+        print(f"{i:2d}. {model_id:<45} Best: {best_score:6.1f}% | Avg: {avg_score:6.1f}% | Submissions: {submissions}")
+
+    print("\n" + "="*100)
     print("✓ COMPLETE: Generated merged_models.csv and top50_models.csv")
+    print("✓ Fetched live PinchBench leaderboard (saved as pinchbench-leaderboard.json)")
     print("="*100)

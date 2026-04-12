@@ -21,6 +21,7 @@
     <button class="tab"        data-panel="cost"     role="tab">Cost</button>
     <button class="tab"        data-panel="kanban"   role="tab">Kanban</button>
     <button class="tab"        data-panel="pairings" role="tab">Pairings <span id="pairing-badge" class="badge hidden">0</span></button>
+    <button class="tab"        data-panel="files"    role="tab">Files</button>
     <button class="tab"        data-panel="config"   role="tab">Config &amp; Launch</button>
   </div>
   <div class="ws-dot" id="ws-dot" title="WebSocket"></div>
@@ -222,6 +223,20 @@
           <input type="text" id="chat-input" placeholder="Type a message…" style="flex:1" disabled />
           <button class="btn btn-primary btn-sm" id="btn-chat-send" disabled>Send</button>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Config & Launch ────────────────────────────────────────────────── -->
+  <!-- ── Files ────────────────────────────────────────────────────────────── -->
+  <section class="panel" id="panel-files">
+    <div class="files-layout">
+      <div class="files-sidebar">
+        <div class="files-instance-list" id="files-instance-list"></div>
+        <div class="files-file-list" id="files-file-list"></div>
+      </div>
+      <div class="files-main" id="files-main">
+        <div class="empty-state">Select an instance and file to edit</div>
       </div>
     </div>
   </section>

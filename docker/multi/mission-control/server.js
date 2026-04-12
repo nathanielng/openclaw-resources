@@ -675,6 +675,28 @@ app.get('/api/fleet/images', async (_req, res) => {
   res.json(results);
 });
 
+// Instance files (SOUL.md, IDENTITY.md, HEARTBEAT.md)
+const EDITABLE_FILES = ['SOUL.md', 'IDENTITY.md', 'HEARTBEAT.md', 'AGENTS.md', 'BOOTSTRAP.md', 'MEMORY.md', 'USER.md', 'TOOLS.md'];
+
+app.get('/api/files/:id/:name', (req, res) => {
+  const inst = INSTANCES.find(i => i.id === parseInt(req.params.id));
+  if (!inst) return res.status(404).json({ error: 'unknown instance' });
+  if (!EDITABLE_FILES.includes(req.params.name)) return res.status(400).json({ error: 'not allowed' });
+  const filePath = path.join(DATA_DIR, `instance-${inst.id}`, 'workspace', req.params.name);
+  try { res.json({ content: fs.readFileSync(filePath, 'utf8') }); }
+  catch { res.json({ content: '' }); }
+});
+
+app.put('/api/files/:id/:name', (req, res) => {
+  const inst = INSTANCES.find(i => i.id === parseInt(req.params.id));
+  if (!inst) return res.status(404).json({ error: 'unknown instance' });
+  if (!EDITABLE_FILES.includes(req.params.name)) return res.status(400).json({ error: 'not allowed' });
+  const filePath = path.join(DATA_DIR, `instance-${inst.id}`, 'workspace', req.params.name);
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, req.body.content || '');
+  res.json({ ok: true });
+});
+
 // Per-instance env (sorted, masked)
 app.get('/api/config/env/:id', (req, res) => {
   const inst = INSTANCES.find(i => i.id === parseInt(req.params.id));

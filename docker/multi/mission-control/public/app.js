@@ -946,6 +946,71 @@ function renderEnvTable(suffix, vars, instanceId) {
   });
 }
 
+// ── Files editor ───────────────────────────────────────────────────────────
+
+const FILES_LIST = ['SOUL.md', 'IDENTITY.md', 'AGENTS.md', 'BOOTSTRAP.md', 'HEARTBEAT.md', 'MEMORY.md', 'TOOLS.md', 'USER.md'];
+let filesInstanceId = null;
+let filesFileName = null;
+
+(function initFilesTab() {
+  const instList = document.getElementById('files-instance-list');
+  Object.entries(INSTANCE_META).forEach(([id, meta]) => {
+    const btn = document.createElement('button');
+    btn.className = 'files-inst-btn';
+    btn.dataset.id = id;
+    btn.innerHTML = `<span class="cfg-dot" style="background:${meta.color}"></span>${meta.label}`;
+    btn.addEventListener('click', () => selectFilesInstance(id));
+    instList.appendChild(btn);
+  });
+})();
+
+function selectFilesInstance(id) {
+  filesInstanceId = id;
+  document.querySelectorAll('.files-inst-btn').forEach(b => b.classList.toggle('active', b.dataset.id === id));
+  const fileList = document.getElementById('files-file-list');
+  fileList.innerHTML = '';
+  FILES_LIST.forEach(name => {
+    const btn = document.createElement('button');
+    btn.className = 'files-file-btn';
+    btn.dataset.name = name;
+    btn.textContent = name;
+    btn.addEventListener('click', () => loadFile(id, name));
+    fileList.appendChild(btn);
+  });
+  // Auto-load first file
+  loadFile(id, FILES_LIST[0]);
+}
+
+async function loadFile(instanceId, name) {
+  filesFileName = name;
+  document.querySelectorAll('.files-file-btn').forEach(b => b.classList.toggle('active', b.dataset.name === name));
+  const main = document.getElementById('files-main');
+  const meta = INSTANCE_META[instanceId];
+  main.innerHTML = `
+    <div class="files-header">
+      <span style="color:${meta.color};font-weight:600">${meta.label}</span> / <span class="text-mono">${name}</span>
+      <button class="btn btn-primary btn-sm" id="files-save">Save</button>
+    </div>
+    <textarea class="files-editor" id="files-editor" spellcheck="false">Loading…</textarea>
+  `;
+  try {
+    const data = await api('GET', `/api/files/${instanceId}/${name}`);
+    document.getElementById('files-editor').value = data.content;
+  } catch { document.getElementById('files-editor').value = ''; }
+
+  document.getElementById('files-save').addEventListener('click', async () => {
+    const btn = document.getElementById('files-save');
+    btn.disabled = true;
+    btn.textContent = '…';
+    try {
+      await api('PUT', `/api/files/${instanceId}/${name}`, { content: document.getElementById('files-editor').value });
+      toast(`${name} saved`, 'success');
+    } catch (err) { toast('Save failed: ' + err.message, 'error'); }
+    btn.disabled = false;
+    btn.textContent = 'Save';
+  });
+}
+
 // ── API helper ─────────────────────────────────────────────────────────────
 
 async function api(method, url, body) {
@@ -1052,6 +1117,11 @@ marked.setOptions({
   },
   breaks: true,
 });
+
+const renderer = new marked.Renderer();
+const origHtml = renderer.html.bind(renderer);
+renderer.html = (html) => '<pre><code>' + escHtml(typeof html === 'object' ? html.text || html.raw || '' : html) + '</code></pre>';
+marked.use({ renderer });
 
 function renderMd(text) {
   return marked.parse(text);

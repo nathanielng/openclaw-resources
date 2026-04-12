@@ -652,6 +652,20 @@ select option { background: var(--surface2); }
   to   { transform: translateX(0);    opacity: 1; }
 }
 
+/* ── Files editor ──────────────────────────────────────────────────────── */
+.files-layout { display: flex; height: calc(100vh - 120px); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.files-sidebar { display: flex; flex-direction: column; width: 160px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); }
+.files-inst-btn, .files-file-btn { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border: none; background: transparent; color: var(--muted); font-size: 13px; cursor: pointer; text-align: left; border-left: 3px solid transparent; transition: all 0.15s; width: 100%; }
+.files-inst-btn:hover, .files-file-btn:hover { background: var(--surface2); color: var(--text); }
+.files-inst-btn.active { background: var(--surface2); color: var(--text); border-left-color: var(--blue); }
+.files-file-btn { font-family: var(--font-mono); font-size: 12px; padding: 8px 14px; }
+.files-file-btn.active { background: var(--bg); color: var(--text); border-left-color: var(--healthy); }
+.files-file-list { border-top: 1px solid var(--border); }
+.files-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.files-header { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.files-header .btn { margin-left: auto; }
+.files-editor { flex: 1; background: #0a0e13; color: var(--text); border: none; padding: 14px; font-family: var(--font-mono); font-size: 13px; line-height: 1.6; resize: none; outline: none; }
+
 /* ── Utility ───────────────────────────────────────────────────────────── */
 .mt-2 { margin-top: 8px; }
 .mt-3 { margin-top: 12px; }

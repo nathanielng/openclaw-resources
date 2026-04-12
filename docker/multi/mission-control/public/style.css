@@ -384,13 +384,13 @@ body {
 #log-box[data-filter="4"] .log-line:not([data-instance="4"]) { display: none; }
 
 /* ── Config panel ──────────────────────────────────────────────────────── */
-.config-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-}
-
-@media (max-width: 700px) { .config-grid { grid-template-columns: 1fr; } }
+.config-layout { display: flex; gap: 0; min-height: 400px; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.config-sidebar { display: flex; flex-direction: column; width: 160px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); }
+.config-sidebar-btn { display: flex; align-items: center; gap: 8px; padding: 14px 16px; border: none; background: transparent; color: var(--muted); font-size: 13px; font-weight: 500; cursor: pointer; text-align: left; border-left: 3px solid transparent; transition: all 0.15s; }
+.config-sidebar-btn:hover { background: var(--surface2); color: var(--text); }
+.config-sidebar-btn.active { background: var(--surface2); color: var(--text); border-left-color: var(--blue); }
+.config-sidebar-btn .cfg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.config-main { flex: 1; background: var(--bg); overflow-y: auto; }
 
 .config-card {
   background: var(--surface);
@@ -402,9 +402,24 @@ body {
 .config-card h3 {
   font-size: 14px;
   font-weight: 600;
-  margin-bottom: 14px;
   color: var(--text);
 }
+
+.env-table { display: flex; flex-direction: column; gap: 1px; }
+.env-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 4px; background: var(--surface2); }
+.env-row:hover { background: #1e2a38; }
+.env-key { font-family: var(--font-mono); font-size: 12px; color: var(--blue); min-width: 220px; flex-shrink: 0; }
+.env-val { font-family: var(--font-mono); font-size: 12px; color: var(--muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.env-edit { opacity: 0; transition: opacity 0.15s; }
+.env-row:hover .env-edit { opacity: 1; }
+.env-val-input { font-family: var(--font-mono); font-size: 12px; padding: 3px 6px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); }
+.env-key-input { font-family: var(--font-mono); font-size: 12px; padding: 3px 6px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--blue); }
+.env-row-new { background: #1a2a2a; border: 1px dashed var(--border); }
+
+.json-viewer { margin-top: 12px; }
+.json-pre { background: #0a0e13; border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; font-family: var(--font-mono); font-size: 11px; line-height: 1.5; max-height: 400px; overflow: auto; color: var(--text); white-space: pre-wrap; word-break: break-all; }
+
+.btn-show-json.active { border-color: var(--blue); color: var(--blue); }
 
 .launch-controls {
   background: var(--surface);
@@ -417,28 +432,7 @@ body {
 .launch-controls h3 {
   font-size: 14px;
   font-weight: 600;
-  margin-bottom: 14px;
 }
-
-.count-selector {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-
-.count-btn {
-  padding: 7px 18px;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: var(--surface2);
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  transition: all 0.15s;
-}
-.count-btn:hover  { border-color: var(--blue); color: var(--text); }
-.count-btn.active { border-color: var(--blue); background: #1a2a40; color: var(--blue); }
 
 .compose-output {
   background: #0a0e13;
@@ -473,9 +467,13 @@ body {
 }
 
 .cost-card h4 { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
-.cost-total { font-size: 24px; font-weight: 700; font-family: var(--font-mono); }
+.cost-total { font-size: 20px; font-weight: 500; font-family: var(--font-mono); }
 .cost-daily { font-size: 12px; color: var(--muted); margin-top: 4px; }
 .cost-model { font-size: 11px; font-family: var(--font-mono); color: var(--blue); margin-top: 4px; }
+
+.cost-chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 20px; }
+.cost-chart-card h3 { font-size: 14px; font-weight: 600; }
+.cost-period.active { border-color: var(--blue); background: #1a2a40; color: var(--blue); }
 
 .budget-row {
   display: flex;
@@ -665,7 +663,13 @@ select option { background: var(--surface2); }
 .hidden { display: none !important; }
 
 /* ── Chat ──────────────────────────────────────────────────────────────── */
-.chat-inst-btn.active { border-color: var(--blue); background: #1a2a40; color: var(--blue); }
+.chat-layout { display: flex; height: calc(100vh - 120px); gap: 0; }
+.chat-sidebar { display: flex; flex-direction: column; width: 140px; flex-shrink: 0; border-right: 1px solid var(--border); background: var(--surface); border-radius: var(--radius) 0 0 var(--radius); }
+.chat-sidebar .chat-inst-btn { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border: none; background: transparent; color: var(--muted); font-size: 13px; font-weight: 500; cursor: pointer; text-align: left; border-left: 3px solid transparent; transition: all 0.15s; }
+.chat-sidebar .chat-inst-btn:hover { background: var(--surface2); color: var(--text); }
+.chat-sidebar .chat-inst-btn.active { background: var(--surface2); color: var(--text); border-left-color: var(--blue); }
+.chat-inst-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.chat-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .chat-msg { padding: 8px 12px; border-radius: 8px; max-width: 80%; font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
 .chat-msg.user { align-self: flex-end; background: #1a2a40; color: var(--blue); }
 .chat-msg.assistant { align-self: flex-start; background: var(--surface2); color: var(--fg); }

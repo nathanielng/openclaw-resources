@@ -25,7 +25,6 @@ let subscribedLogs = new Set([1, 2, 3, 4]); // always stream all; filter is disp
 let dragItemId   = null;
 let openrouterModels = {};
 let configuredModels = {};
-let selectedCount = 2;
 let startingInstances = new Set();
 let budget       = parseFloat(localStorage.getItem('budget') || '0') || 0;
 
@@ -575,6 +574,93 @@ function renderCost() {
   } else {
     statusEl.textContent = 'No budget set.';
   }
+
+  // Bar chart
+  renderCostChart();
+}
+
+let costChart = null;
+let costPeriod = 'daily';
+
+document.querySelectorAll('.cost-period').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.cost-period').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    costPeriod = btn.dataset.period;
+    renderCostChart();
+  });
+});
+
+function renderCostChart() {
+  const ctx = document.getElementById('cost-chart');
+  const periodKey = { daily: 'usageDaily', weekly: 'usageWeekly', monthly: 'usageMonthly' }[costPeriod];
+  const periodLabel = costPeriod.charAt(0).toUpperCase() + costPeriod.slice(1);
+
+  const labels = [];
+  const values = [];
+  const colors = [];
+  let fleetTotal = 0;
+
+  Object.entries(INSTANCE_META).forEach(([id, meta]) => {
+    const val = costData[id] ? (costData[id][periodKey] || 0) : 0;
+    labels.push(meta.label);
+    values.push(val);
+    colors.push(meta.color);
+    fleetTotal += val;
+  });
+
+  labels.push('Fleet Total');
+  values.push(fleetTotal);
+  colors.push('#8b949e');
+
+  const avg = fleetTotal / 4;
+
+  if (costChart) costChart.destroy();
+  costChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: `${periodLabel} Usage ($)`,
+          data: values,
+          backgroundColor: colors.map(c => c + 'cc'),
+          borderColor: colors,
+          borderWidth: 1,
+          borderRadius: 4,
+        },
+        {
+          label: `${periodLabel} Avg ($${avg.toFixed(4)})`,
+          data: Array(labels.length).fill(avg),
+          type: 'line',
+          borderColor: '#8b949e',
+          borderDash: [6, 4],
+          borderWidth: 1.5,
+          pointRadius: 0,
+          fill: false,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: { labels: { color: '#8b949e', font: { size: 11 } } },
+        tooltip: {
+          callbacks: { label: (c) => `${c.dataset.label}: $${c.raw.toFixed(4)}` },
+        },
+      },
+      scales: {
+        x: { ticks: { color: '#8b949e' }, grid: { color: '#30363d33' } },
+        y: {
+          ticks: { color: '#8b949e', callback: (v) => '$' + v.toFixed(2) },
+          grid: { color: '#30363d66' },
+          beginAtZero: true,
+        },
+      },
+    },
+  });
 }
 
 document.getElementById('btn-save-budget').addEventListener('click', () => {
@@ -690,15 +776,6 @@ document.getElementById('btn-ping-all').addEventListener('click', async (e) => {
 
 // ── Config & Launch ────────────────────────────────────────────────────────
 
-// Count selector
-document.querySelectorAll('.count-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.count-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    selectedCount = parseInt(btn.dataset.count);
-  });
-});
-
 async function streamingPost(url, body, outputEl) {
   outputEl.textContent = '';
   outputEl.classList.add('show');
@@ -720,35 +797,6 @@ async function streamingPost(url, body, outputEl) {
   }
 }
 
-document.getElementById('btn-launch').addEventListener('click', async (e) => {
-  const btn = e.currentTarget;
-  btn.disabled = true;
-  const out = document.getElementById('compose-output');
-  try {
-    await streamingPost('/api/compose/up', { count: selectedCount }, out);
-    toast(`Launched ${selectedCount} containers`, 'success');
-  } catch (err) {
-    toast('Launch failed: ' + err.message, 'error');
-  } finally {
-    btn.disabled = false;
-  }
-});
-
-document.getElementById('btn-stop').addEventListener('click', async (e) => {
-  if (!confirm('Stop all OpenClaw containers?')) return;
-  const btn = e.currentTarget;
-  btn.disabled = true;
-  const out = document.getElementById('compose-output');
-  try {
-    await streamingPost('/api/compose/down', {}, out);
-    toast('All containers stopped', 'info');
-  } catch (err) {
-    toast('Stop failed: ' + err.message, 'error');
-  } finally {
-    btn.disabled = false;
-  }
-});
-
 document.getElementById('btn-pull').addEventListener('click', async (e) => {
   const btn = e.currentTarget;
   btn.disabled = true;
@@ -756,6 +804,7 @@ document.getElementById('btn-pull').addEventListener('click', async (e) => {
   try {
     await streamingPost('/api/compose/pull', {}, out);
     toast('Image pull complete', 'success');
+    loadFleetImages();
   } catch (err) {
     toast('Pull failed: ' + err.message, 'error');
   } finally {
@@ -763,83 +812,138 @@ document.getElementById('btn-pull').addEventListener('click', async (e) => {
   }
 });
 
-// API Keys
-document.getElementById('btn-save-keys').addEventListener('click', async () => {
-  const anthropicKey     = document.getElementById('key-anthropic').value.trim();
-  const gatewayToken     = document.getElementById('key-gateway').value.trim();
-  const openaiKey        = document.getElementById('key-openai').value.trim();
-  const openrouterKey    = document.getElementById('key-openrouter').value.trim();
-  const openrouterModel  = document.getElementById('key-openrouter-model').value.trim();
-
-  if (!anthropicKey && !gatewayToken && !openaiKey && !openrouterKey && !openrouterModel) {
-    toast('Enter at least one key', 'error');
-    return;
-  }
-
-  const instances = Array.from(
-    document.querySelectorAll('#key-instances input:checked')
-  ).map(el => parseInt(el.value));
-
-  if (!instances.length) {
-    toast('Select at least one instance', 'error');
-    return;
-  }
-
+async function loadFleetImages() {
+  const el = document.getElementById('fleet-images');
   try {
-    await api('POST', '/api/config/keys', { anthropicKey, gatewayToken, openaiKey, openrouterKey, openrouterModel, instances });
-    toast(`Keys saved to ${instances.length} instance(s)`, 'success');
-    // Clear fields after save
-    document.getElementById('key-anthropic').value = '';
-    document.getElementById('key-gateway').value = '';
-    document.getElementById('key-openai').value = '';
-    document.getElementById('key-openrouter').value = '';
-    document.getElementById('key-openrouter-model').value = '';
-    loadKeyPreview();
-  } catch (err) {
-    toast('Save failed: ' + err.message, 'error');
-  }
-});
+    const data = await api('GET', '/api/fleet/images');
+    el.innerHTML = '';
+    data.forEach(inst => {
+      const meta = INSTANCE_META[inst.id];
+      const row = document.createElement('div');
+      row.className = 'env-row';
+      row.innerHTML = `
+        <span class="env-key" style="color:${meta.color};min-width:120px">${meta.label}</span>
+        <span class="env-val" style="color:var(--text)">${inst.image || '—'}</span>
+        <span class="env-val" style="flex:0;white-space:nowrap">${inst.version ? `v${inst.version}` : '—'}</span>
+      `;
+      el.appendChild(row);
+    });
+  } catch { el.innerHTML = '<span class="text-muted text-sm">Failed to load</span>'; }
+}
 
-document.getElementById('btn-refresh-keys').addEventListener('click', loadKeyPreview);
+// Per-instance env editor + openclaw.json viewer
+let activeConfigId = null;
 
-// Telegram tokens (per-instance)
-document.getElementById('btn-save-tg').addEventListener('click', async () => {
-  const tokens = {};
-  [1, 2, 3, 4].forEach(id => {
-    const val = document.getElementById(`tg-${id}`).value.trim();
-    if (val) tokens[id] = val;
+async function loadConfigInstances() {
+  const sidebar = document.getElementById('config-sidebar');
+  sidebar.innerHTML = '';
+
+  Object.entries(INSTANCE_META).forEach(([id, meta]) => {
+    const btn = document.createElement('button');
+    btn.className = 'config-sidebar-btn';
+    btn.dataset.id = id;
+    btn.innerHTML = `<span class="cfg-dot" style="background:${meta.color}"></span>${meta.label}`;
+    btn.addEventListener('click', () => selectConfigInstance(id));
+    sidebar.appendChild(btn);
   });
+}
 
-  if (!Object.keys(tokens).length) {
-    toast('Enter at least one Telegram bot token', 'error');
-    return;
-  }
+async function selectConfigInstance(id) {
+  activeConfigId = id;
+  const meta = INSTANCE_META[id];
+  document.querySelectorAll('.config-sidebar-btn').forEach(b => b.classList.toggle('active', b.dataset.id === id));
 
+  const main = document.getElementById('config-main');
+  main.innerHTML = `
+    <div class="config-card" style="border:none;border-radius:0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <h3 style="color:${meta.color};margin:0">${meta.label} <span class="text-muted" style="font-weight:400">.env</span></h3>
+        <button class="btn btn-ghost btn-sm" id="cfg-add-var">+ Add Variable</button>
+      </div>
+      <div class="env-table" id="env-table-active"><span class="text-muted text-sm">Loading…</span></div>
+    </div>
+    <div class="config-card" style="border:none;border-radius:0">
+      <h3 style="margin:0 0 12px">openclaw.json</h3>
+      <pre class="json-pre" id="json-pre-active">Loading…</pre>
+    </div>
+  `;
+
+  // Load env
   try {
-    await api('POST', '/api/config/keys', { telegramTokens: tokens });
-    const count = Object.keys(tokens).length;
-    toast(`Telegram token${count > 1 ? 's' : ''} saved to ${count} instance${count > 1 ? 's' : ''}`, 'success');
-    [1, 2, 3, 4].forEach(id => { document.getElementById(`tg-${id}`).value = ''; });
-    loadKeyPreview();
-  } catch (err) {
-    toast('Save failed: ' + err.message, 'error');
-  }
-});
+    const vars = await api('GET', `/api/config/env/${id}`);
+    renderEnvTable('active', vars, id);
+  } catch { document.getElementById('env-table-active').innerHTML = '<span class="text-muted text-sm">Failed to load</span>'; }
 
-async function loadKeyPreview() {
-  const el = document.getElementById('keys-preview');
+  // Load openclaw.json
   try {
-    const data = await api('GET', '/api/config/keys');
-    el.innerHTML = data.map(inst => {
-      const meta = INSTANCE_META[inst.instanceId];
-      const lines = Object.entries(inst.vars)
-        .map(([k, v]) => `  ${k}=${escHtml(v)}`)
-        .join('\n');
-      return `<div style="margin-bottom:10px"><span style="color:${meta.color};font-weight:600">${meta.label} (${inst.instanceId})</span>\n${lines || '  (empty)'}</div>`;
-    }).join('');
-  } catch {
-    el.textContent = 'Failed to load';
-  }
+    const data = await api('GET', `/api/config/openclaw/${id}`);
+    document.getElementById('json-pre-active').textContent = JSON.stringify(data, null, 2);
+  } catch { document.getElementById('json-pre-active').textContent = 'Failed to load'; }
+
+  // Wire add variable
+  document.getElementById('cfg-add-var').addEventListener('click', () => {
+    const table = document.getElementById('env-table-active');
+    const row = document.createElement('div');
+    row.className = 'env-row env-row-new';
+    row.innerHTML = `
+      <input class="env-key-input" type="text" placeholder="VARIABLE_NAME" style="flex:1" />
+      <input class="env-val-input" type="text" placeholder="value" style="flex:2" />
+      <button class="btn btn-success btn-sm env-save-new">Save</button>
+      <button class="btn btn-ghost btn-sm env-cancel-new">✕</button>
+    `;
+    table.prepend(row);
+    row.querySelector('.env-key-input').focus();
+    row.querySelector('.env-cancel-new').addEventListener('click', () => row.remove());
+    row.querySelector('.env-save-new').addEventListener('click', async () => {
+      const key = row.querySelector('.env-key-input').value.trim().toUpperCase();
+      const value = row.querySelector('.env-val-input').value;
+      if (!key) { toast('Variable name required', 'error'); return; }
+      try {
+        await api('PATCH', `/api/config/env/${id}`, { key, value });
+        toast(`${key} saved`, 'success');
+        const vars = await api('GET', `/api/config/env/${id}`);
+        renderEnvTable('active', vars, id);
+      } catch (err) { toast('Save failed: ' + err.message, 'error'); }
+    });
+  });
+}
+
+function renderEnvTable(suffix, vars, instanceId) {
+  const table = document.getElementById(`env-table-${suffix}`);
+  if (!vars.length) { table.innerHTML = '<span class="text-muted text-sm">No variables set</span>'; return; }
+  table.innerHTML = '';
+  vars.forEach(({ key, masked }) => {
+    const row = document.createElement('div');
+    row.className = 'env-row';
+    row.innerHTML = `
+      <span class="env-key">${escHtml(key)}</span>
+      <span class="env-val">${escHtml(masked)}</span>
+      <button class="btn btn-ghost btn-sm env-edit" title="Edit">✎</button>
+    `;
+    row.querySelector('.env-edit').addEventListener('click', () => {
+      row.innerHTML = `
+        <span class="env-key">${escHtml(key)}</span>
+        <input class="env-val-input" type="text" placeholder="new value" style="flex:1" />
+        <button class="btn btn-success btn-sm env-save">Save</button>
+        <button class="btn btn-ghost btn-sm env-cancel">✕</button>
+      `;
+      row.querySelector('.env-val-input').focus();
+      row.querySelector('.env-cancel').addEventListener('click', async () => {
+        const vars = await api('GET', `/api/config/env/${instanceId}`);
+        renderEnvTable(suffix, vars, instanceId);
+      });
+      row.querySelector('.env-save').addEventListener('click', async () => {
+        const value = row.querySelector('.env-val-input').value;
+        try {
+          await api('PATCH', `/api/config/env/${instanceId}`, { key, value });
+          toast(`${key} updated`, 'success');
+          const vars = await api('GET', `/api/config/env/${instanceId}`);
+          renderEnvTable(suffix, vars, instanceId);
+        } catch (err) { toast('Save failed: ' + err.message, 'error'); }
+      });
+    });
+    table.appendChild(row);
+  });
 }
 
 // ── API helper ─────────────────────────────────────────────────────────────
@@ -894,7 +998,8 @@ async function init() {
     toast('Failed to load initial data: ' + e.message, 'error');
   }
 
-  loadKeyPreview();
+  loadConfigInstances();
+  loadFleetImages();
 
   // Budget input pre-fill
   if (budget > 0) document.getElementById('budget-input').value = budget;

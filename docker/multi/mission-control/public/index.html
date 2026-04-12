@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>OpenClaw Mission Control</title>
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -12,11 +13,11 @@
   <div class="topbar-brand">OpenClaw <span>Mission Control</span></div>
   <div class="tabs" role="tablist">
     <button class="tab active" data-panel="fleet"    role="tab">Fleet</button>
-    <button class="tab"        data-panel="kanban"   role="tab">Kanban</button>
     <button class="tab"        data-panel="logs"     role="tab">Live Logs</button>
-    <button class="tab"        data-panel="cost"     role="tab">Cost</button>
-    <button class="tab"        data-panel="pairings" role="tab">Pairings <span id="pairing-badge" class="badge hidden">0</span></button>
     <button class="tab"        data-panel="chat"     role="tab">Chat</button>
+    <button class="tab"        data-panel="cost"     role="tab">Cost</button>
+    <button class="tab"        data-panel="kanban"   role="tab">Kanban</button>
+    <button class="tab"        data-panel="pairings" role="tab">Pairings <span id="pairing-badge" class="badge hidden">0</span></button>
     <button class="tab"        data-panel="config"   role="tab">Config &amp; Launch</button>
   </div>
   <div class="ws-dot" id="ws-dot" title="WebSocket"></div>
@@ -136,7 +137,19 @@
 
     <div class="cost-grid" id="cost-grid"></div>
 
-    <div class="config-card" style="max-width:400px">
+    <div class="cost-chart-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <h3 style="margin:0">Usage by Instance</h3>
+        <div style="display:flex;gap:4px" id="cost-period-btns">
+          <button class="btn btn-ghost btn-sm cost-period active" data-period="daily">Daily</button>
+          <button class="btn btn-ghost btn-sm cost-period" data-period="weekly">Weekly</button>
+          <button class="btn btn-ghost btn-sm cost-period" data-period="monthly">Monthly</button>
+        </div>
+      </div>
+      <div style="height:220px"><canvas id="cost-chart"></canvas></div>
+    </div>
+
+    <div class="config-card" style="max-width:400px;margin-top:20px">
       <h3>Daily Budget Alert</h3>
       <div class="form-group">
         <label>Alert threshold (USD / day)</label>
@@ -192,20 +205,21 @@
 
   <!-- ── Chat ────────────────────────────────────────────────────────────── -->
   <section class="panel" id="panel-chat">
-    <div class="log-controls">
-      <span class="section-title">Chat</span>
-      <div style="display:flex;gap:6px" id="chat-instance-btns">
-        <button class="btn btn-ghost btn-sm chat-inst-btn" data-instance="1">Research</button>
-        <button class="btn btn-ghost btn-sm chat-inst-btn" data-instance="2">Coding</button>
-        <button class="btn btn-ghost btn-sm chat-inst-btn" data-instance="3">Comms</button>
-        <button class="btn btn-ghost btn-sm chat-inst-btn" data-instance="4">Ops</button>
+    <div class="chat-layout">
+      <div class="chat-sidebar" id="chat-instance-btns">
+        <button class="chat-inst-btn" data-instance="1"><span class="chat-inst-dot" style="background:#4f9cf9"></span>Research</button>
+        <button class="chat-inst-btn" data-instance="2"><span class="chat-inst-dot" style="background:#a78bfa"></span>Coding</button>
+        <button class="chat-inst-btn" data-instance="3"><span class="chat-inst-dot" style="background:#34d399"></span>Comms</button>
+        <button class="chat-inst-btn" data-instance="4"><span class="chat-inst-dot" style="background:#fb923c"></span>Ops</button>
       </div>
-    </div>
-    <div id="chat-status" style="padding:4px 12px;font-size:11px;color:var(--muted)">Select an instance to start chatting</div>
-    <div id="chat-messages" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;min-height:300px;max-height:60vh"></div>
-    <div style="display:flex;gap:8px;padding:12px;border-top:1px solid var(--border)">
-      <input type="text" id="chat-input" placeholder="Type a message…" style="flex:1" disabled />
-      <button class="btn btn-primary btn-sm" id="btn-chat-send" disabled>Send</button>
+      <div class="chat-main">
+        <div id="chat-status" style="padding:4px 12px;font-size:11px;color:var(--muted)">Select an instance to start chatting</div>
+        <div id="chat-messages" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px"></div>
+        <div style="display:flex;gap:8px;padding:12px;border-top:1px solid var(--border)">
+          <input type="text" id="chat-input" placeholder="Type a message…" style="flex:1" disabled />
+          <button class="btn btn-primary btn-sm" id="btn-chat-send" disabled>Send</button>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -215,101 +229,21 @@
       <span class="section-title">Config &amp; Launch</span>
     </div>
 
-    <!-- Launch controls -->
+    <!-- Fleet controls -->
     <div class="launch-controls">
-      <h3>Fleet Controls</h3>
-      <p class="text-muted text-sm" style="margin-bottom:12px">
-        Select how many containers to run, then Launch. Stop terminates all instances.
-      </p>
-      <div>
-        <label style="margin-bottom:8px">Number of containers</label>
-        <div class="count-selector" id="count-selector">
-          <button class="count-btn active" data-count="2">2 agents</button>
-          <button class="count-btn"        data-count="3">3 agents</button>
-          <button class="count-btn"        data-count="4">4 agents</button>
-        </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <h3 style="margin:0">Fleet Images</h3>
+        <button class="btn btn-ghost btn-sm" id="btn-pull">↓ Pull Latest Image</button>
       </div>
-      <div class="flex gap-2 mt-3">
-        <button class="btn btn-success" id="btn-launch">▶ Launch</button>
-        <button class="btn btn-danger"  id="btn-stop">■ Stop All</button>
-        <button class="btn btn-ghost"   id="btn-pull">↓ Pull Latest Image</button>
-      </div>
+      <div id="fleet-images"><span class="text-muted text-sm">Loading…</span></div>
       <pre class="compose-output" id="compose-output"></pre>
     </div>
 
-    <!-- API Keys -->
-    <div class="config-grid">
-      <div class="config-card">
-        <h3>API Keys</h3>
-        <p class="text-muted text-sm" style="margin-bottom:12px">
-          Paste keys below. They are written to each instance's <code style="font-family:var(--font-mono)">.env</code> file
-          with <code style="font-family:var(--font-mono)">chmod 600</code> and never logged.
-        </p>
-        <div class="form-group">
-          <label>ANTHROPIC_API_KEY</label>
-          <input type="password" id="key-anthropic" placeholder="sk-ant-…" autocomplete="off">
-        </div>
-        <div class="form-group">
-          <label>OPENCLAW_GATEWAY_TOKEN</label>
-          <input type="password" id="key-gateway" placeholder="shared or per-agent token" autocomplete="off">
-        </div>
-        <div class="form-group">
-          <label>OPENAI_API_KEY (optional)</label>
-          <input type="password" id="key-openai" placeholder="sk-…" autocomplete="off">
-        </div>
-        <div class="form-group">
-          <label>OPENROUTER_API_KEY (optional)</label>
-          <input type="password" id="key-openrouter" placeholder="sk-or-…" autocomplete="off">
-        </div>
-        <div class="form-group">
-          <label>OPENROUTER_MODEL (optional)</label>
-          <input type="text" id="key-openrouter-model" placeholder="e.g. google/gemini-2.0-flash-exp" autocomplete="off">
-        </div>
-        <div class="form-group">
-          <label>Apply to instances</label>
-          <div class="instance-checkboxes" id="key-instances">
-            <label class="instance-check"><input type="checkbox" value="1" checked> Research (1)</label>
-            <label class="instance-check"><input type="checkbox" value="2" checked> Coding (2)</label>
-            <label class="instance-check"><input type="checkbox" value="3" checked> Comms (3)</label>
-            <label class="instance-check"><input type="checkbox" value="4" checked> Ops (4)</label>
-          </div>
-        </div>
-        <button class="btn btn-primary" id="btn-save-keys">Save Keys</button>
-      </div>
-
-      <div class="config-card">
-        <h3>Telegram Bot Tokens</h3>
-        <p class="text-muted text-sm" style="margin-bottom:12px">
-          Each instance connects to its own Telegram bot. Tokens are written directly to each
-          instance's <code style="font-family:var(--font-mono)">.env</code> file and persist
-          between sessions. Leave a field blank to leave that instance's token unchanged.
-        </p>
-        <div class="form-group">
-          <label>Instance 1 — Research</label>
-          <input type="password" id="tg-1" placeholder="1234567890:ABCdef…" autocomplete="off">
-        </div>
-        <div class="form-group">
-          <label>Instance 2 — Coding</label>
-          <input type="password" id="tg-2" placeholder="1234567890:ABCdef…" autocomplete="off">
-        </div>
-        <div class="form-group">
-          <label>Instance 3 — Comms</label>
-          <input type="password" id="tg-3" placeholder="1234567890:ABCdef…" autocomplete="off">
-        </div>
-        <div class="form-group">
-          <label>Instance 4 — Ops</label>
-          <input type="password" id="tg-4" placeholder="1234567890:ABCdef…" autocomplete="off">
-        </div>
-        <button class="btn btn-primary" id="btn-save-tg">Save Telegram Tokens</button>
-      </div>
-
-      <div class="config-card">
-        <h3>Stored Keys (masked)</h3>
-        <p class="text-muted text-sm" style="margin-bottom:12px">
-          Current values on disk, masked for display.
-        </p>
-        <div id="keys-preview" class="text-mono text-sm text-muted">Loading…</div>
-        <button class="btn btn-ghost btn-sm mt-3" id="btn-refresh-keys">Refresh</button>
+    <!-- Per-instance config -->
+    <div class="config-layout">
+      <div class="config-sidebar" id="config-sidebar"></div>
+      <div class="config-main" id="config-main">
+        <div class="empty-state">Select an instance to view its configuration</div>
       </div>
     </div>
   </section>

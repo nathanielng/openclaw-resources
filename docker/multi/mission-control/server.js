@@ -651,6 +651,64 @@ app.get('/api/config/keys', (_req, res) => {
   res.json(result);
 });
 
+// Fleet image + version info
+function getContainerImage(name) {
+  return new Promise((resolve) => {
+    const proc = spawn('docker', ['inspect', '--format', '{{.Config.Image}} {{.Config.Labels}}', name]);
+    let out = '';
+    proc.stdout.on('data', d => { out += d.toString(); });
+    proc.on('exit', code => {
+      if (code !== 0) return resolve(null);
+      const image = out.trim().split(' ')[0] || null;
+      resolve(image);
+    });
+    proc.on('error', () => resolve(null));
+  });
+}
+
+app.get('/api/fleet/images', async (_req, res) => {
+  const results = await Promise.all(INSTANCES.map(async (inst) => {
+    const image = await getContainerImage(inst.name);
+    const version = healthState[inst.id]?.data?.version || null;
+    return { id: inst.id, name: inst.name, image, version };
+  }));
+  res.json(results);
+});
+
+// Per-instance env (sorted, masked)
+app.get('/api/config/env/:id', (req, res) => {
+  const inst = INSTANCES.find(i => i.id === parseInt(req.params.id));
+  if (!inst) return res.status(404).json({ error: 'unknown instance' });
+  const content = readEnvFile(path.join(DATA_DIR, `instance-${inst.id}`, '.env'));
+  const vars = [];
+  content.split('\n').forEach(line => {
+    const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)/);
+    if (m) vars.push({ key: m[1], masked: m[2].length > 8 ? `${m[2].slice(0, 4)}····${m[2].slice(-4)}` : '····' });
+  });
+  vars.sort((a, b) => a.key.localeCompare(b.key));
+  res.json(vars);
+});
+
+// Update a single env var
+app.patch('/api/config/env/:id', (req, res) => {
+  const inst = INSTANCES.find(i => i.id === parseInt(req.params.id));
+  if (!inst) return res.status(404).json({ error: 'unknown instance' });
+  const { key, value } = req.body;
+  if (!key || value === undefined) return res.status(400).json({ error: 'key and value required' });
+  const envPath = path.join(DATA_DIR, `instance-${inst.id}`, '.env');
+  mergeEnvFile(envPath, { [key]: value });
+  res.json({ ok: true });
+});
+
+// Raw openclaw.json
+app.get('/api/config/openclaw/:id', (req, res) => {
+  const inst = INSTANCES.find(i => i.id === parseInt(req.params.id));
+  if (!inst) return res.status(404).json({ error: 'unknown instance' });
+  const p = path.join(DATA_DIR, `instance-${inst.id}`, 'openclaw.json');
+  try { res.json(JSON.parse(fs.readFileSync(p, 'utf8'))); }
+  catch { res.json({}); }
+});
+
 // Kanban CRUD
 app.get('/api/kanban', (_req, res) => res.json(loadKanban()));
 

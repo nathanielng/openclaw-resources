@@ -679,3 +679,16 @@ select option { background: var(--surface2); }
 .chat-msg.assistant { align-self: flex-start; background: var(--surface2); color: var(--fg); }
 .chat-msg .chat-role { font-size: 10px; font-weight: 600; color: var(--muted); margin-bottom: 2px; }
 .chat-msg.streaming { border-left: 2px solid var(--healthy); }
+.chat-content { overflow-wrap: break-word; }
+.chat-content p { margin: 0 0 8px; }
+.chat-content p:last-child { margin-bottom: 0; }
+.chat-content pre { background: #0a0e13; border: 1px solid var(--border); border-radius: 6px; padding: 10px; margin: 8px 0; overflow-x: auto; font-size: 12px; }
+.chat-content code { font-family: var(--font-mono); font-size: 12px; }
+.chat-content :not(pre) > code { background: var(--surface2); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+.chat-content ul, .chat-content ol { margin: 4px 0; padding-left: 20px; }
+.chat-content blockquote { border-left: 3px solid var(--border); padding-left: 10px; color: var(--muted); margin: 8px 0; }
+.typing-dots { display: flex; gap: 4px; padding: 4px 0; }
+.typing-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: typing-bounce 1.4s infinite ease-in-out both; }
+.typing-dots span:nth-child(2) { animation-delay: 0.16s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.32s; }
+@keyframes typing-bounce { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }

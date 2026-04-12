@@ -1044,17 +1044,39 @@ document.querySelectorAll('.chat-inst-btn').forEach(btn => {
   btn.addEventListener('click', () => chatSelectInstance(parseInt(btn.dataset.instance)));
 });
 
+// Configure marked
+marked.setOptions({
+  highlight: (code, lang) => {
+    if (lang && hljs.getLanguage(lang)) return hljs.highlight(code, { language: lang }).value;
+    return hljs.highlightAuto(code).value;
+  },
+  breaks: true,
+});
+
+function renderMd(text) {
+  return marked.parse(text);
+}
+
 function appendChatMsg(role, text, cls) {
   const box = document.getElementById('chat-messages');
+  // Remove typing indicator if present
+  box.querySelector('.chat-typing')?.remove();
   const el = document.createElement('div');
   el.className = `chat-msg ${role} ${cls || ''}`;
-  el.innerHTML = `<div class="chat-role">${role}</div>`;
-  const content = document.createElement('span');
-  content.textContent = text;
-  el.appendChild(content);
+  el.innerHTML = `<div class="chat-role">${role}</div><div class="chat-content">${role === 'user' ? escHtml(text) : renderMd(text)}</div>`;
   box.appendChild(el);
   box.scrollTop = box.scrollHeight;
   return el;
+}
+
+function showTypingIndicator() {
+  const box = document.getElementById('chat-messages');
+  if (box.querySelector('.chat-typing')) return;
+  const el = document.createElement('div');
+  el.className = 'chat-msg assistant chat-typing';
+  el.innerHTML = '<div class="chat-role">assistant</div><div class="typing-dots"><span></span><span></span><span></span></div>';
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
 }
 
 function sendChat() {
@@ -1063,6 +1085,7 @@ function sendChat() {
   if (!text || !chatInstance) return;
   input.value = '';
   appendChatMsg('user', text);
+  showTypingIndicator();
   ws.send(JSON.stringify({ type: 'chat_send', instanceId: chatInstance, message: text }));
 }
 
@@ -1076,16 +1099,17 @@ function onChatEvent(msg) {
   const p = msg.payload;
   if (!p || !p.message) return;
   const text = (p.message.content || []).filter(c => c.type === 'text').map(c => c.text).join('');
+  const box = document.getElementById('chat-messages');
   if (p.state === 'delta') {
     if (!chatStreaming) {
       chatStreaming = appendChatMsg('assistant', '', 'streaming');
     }
-    chatStreaming.querySelector('span').textContent = text;
-    document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+    chatStreaming.querySelector('.chat-content').innerHTML = renderMd(text);
+    box.scrollTop = box.scrollHeight;
   }
   if (p.state === 'final') {
     if (chatStreaming) {
-      chatStreaming.querySelector('span').textContent = text;
+      chatStreaming.querySelector('.chat-content').innerHTML = renderMd(text);
       chatStreaming.classList.remove('streaming');
       chatStreaming = null;
     } else {

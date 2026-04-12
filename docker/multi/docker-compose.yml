@@ -119,6 +119,8 @@ services:
       - three
       - four
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "127.0.0.1:18791:18789"
     volumes:
@@ -157,6 +159,8 @@ services:
     profiles:
       - four
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "127.0.0.1:18792:18789"
     volumes:

@@ -14,6 +14,7 @@ const wss = new WebSocketServer({ server });
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/images', express.static(path.join(__dirname, 'images')));
 
 const COMPOSE_FILE = process.env.COMPOSE_FILE || '/workspace/docker-compose.yml';
 const COMPOSE_PROJECT_DIR = path.dirname(COMPOSE_FILE);
@@ -518,7 +519,16 @@ function runCompose(args, res) {
 
 // Instances + health
 app.get('/api/instances', (_req, res) => {
-  res.json(INSTANCES.map(inst => ({ ...inst, health: healthState[inst.id] })));
+  res.json(INSTANCES.map(inst => {
+    const env = readEnvFile(path.join(DATA_DIR, `instance-${inst.id}`, '.env'));
+    const m = env.match(/^OPENROUTER_MODEL=(.+)$/m);
+    let configuredModel = null;
+    try {
+      const cfg = JSON.parse(fs.readFileSync(path.join(DATA_DIR, `instance-${inst.id}`, 'openclaw.json'), 'utf8'));
+      configuredModel = cfg.agents?.defaults?.model?.primary || null;
+    } catch {}
+    return { ...inst, health: healthState[inst.id], openrouterModel: m ? m[1].trim() : null, configuredModel };
+  }));
 });
 
 // Compose up

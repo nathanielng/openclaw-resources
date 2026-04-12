@@ -9,6 +9,7 @@ RUN npm install --omit=dev
 
 COPY server.js .
 COPY public/ public/
+COPY images/ images/
 
 EXPOSE 4000
 CMD ["node", "server.js"]

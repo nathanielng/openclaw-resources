@@ -9,6 +9,8 @@ const INSTANCE_META = {
   4: { label: 'Ops',      color: '#fb923c', port: 18792 },
 };
 
+const AVATAR_EXT = { 1: 'jpg', 2: 'jpg', 3: 'jpg', 4: 'jpg' };
+
 const COLUMNS = ['backlog', 'inprogress', 'review', 'done'];
 
 // ── State ──────────────────────────────────────────────────────────────────
@@ -21,6 +23,8 @@ let kanbanData   = { items: [] };
 let pairings     = [];
 let subscribedLogs = new Set([1, 2, 3, 4]); // always stream all; filter is display-only
 let dragItemId   = null;
+let openrouterModels = {};
+let configuredModels = {};
 let selectedCount = 2;
 let startingInstances = new Set();
 let budget       = parseFloat(localStorage.getItem('budget') || '0') || 0;
@@ -111,7 +115,10 @@ function renderFleet() {
     const h = healthData[id] || {};
     const status = h.status || 'unknown';
     const lastCheck = h.lastCheck ? new Date(h.lastCheck).toLocaleTimeString() : '—';
-    const model = (h.data && h.data.model) || '—';
+    const modelFull = (h.data && h.data.model) || configuredModels[id] || openrouterModels[id] || '';
+    const slashIdx = modelFull.indexOf('/');
+    const modelProvider = slashIdx > -1 ? modelFull.slice(0, slashIdx) : '';
+    const modelName = slashIdx > -1 ? modelFull.slice(slashIdx + 1) : modelFull;
     const usage = costData[id] ? (costData[id].usageDaily || 0) : 0;
     const running = status === 'healthy' || status === 'degraded';
 
@@ -120,6 +127,7 @@ function renderFleet() {
     card.style.setProperty('--card-color', meta.color);
     card.innerHTML = `
       <div class="agent-card-header">
+        <img class="agent-avatar" src="/images/openclaw-${id}.${AVATAR_EXT[id]}" alt="${meta.label}" />
         <div>
           <div class="agent-name">openclaw-${id}</div>
           <div class="agent-label">${meta.label}</div>
@@ -135,9 +143,9 @@ function renderFleet() {
           <div class="meta-label">Last check</div>
           <div class="meta-value">${lastCheck}</div>
         </div>
-        <div class="meta-item">
-          <div class="meta-label">Model</div>
-          <div class="meta-value" style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${model}</div>
+        <div class="meta-item meta-item-model">
+          <div class="meta-label">Model${modelProvider ? ` <span class="model-provider">(${modelProvider})</span>` : ''}</div>
+          <div class="meta-value model-value" title="${escHtml(modelFull)}">${modelName ? escHtml(modelName) : '—'}<button class="model-copy" data-model="${escHtml(modelFull)}" title="Copy full model ID">⧉</button></div>
         </div>
         <div class="meta-item">
           <div class="meta-label">Usage</div>
@@ -198,6 +206,14 @@ function renderFleet() {
         btn.disabled = false;
         btn.textContent = '↻';
       }
+    });
+  });
+
+  grid.querySelectorAll('.model-copy').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      navigator.clipboard.writeText(btn.dataset.model);
+      toast('Model ID copied', 'info');
     });
   });
 }
@@ -864,7 +880,11 @@ async function init() {
     ]);
 
     // Build healthData from instances response
-    instancesRes.forEach(inst => { healthData[inst.id] = inst.health; });
+    instancesRes.forEach(inst => {
+      healthData[inst.id] = inst.health;
+      if (inst.openrouterModel) openrouterModels[inst.id] = inst.openrouterModel;
+      if (inst.configuredModel) configuredModels[inst.id] = inst.configuredModel;
+    });
     renderFleet();
 
     onKanban(kanban);

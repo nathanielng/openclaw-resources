@@ -418,6 +418,10 @@ body {
 
 .json-viewer { margin-top: 12px; }
 .json-pre { background: #0a0e13; border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; font-family: var(--font-mono); font-size: 11px; line-height: 1.5; max-height: 400px; overflow: auto; color: var(--text); white-space: pre-wrap; word-break: break-all; }
+.json-key { color: #79c0ff; }
+.json-str { color: #a5d6ff; }
+.json-num { color: #d2a8ff; }
+.json-bool { color: #ff7b72; }
 
 .btn-show-json.active { border-color: var(--blue); color: var(--blue); }
 

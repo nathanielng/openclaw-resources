@@ -877,7 +877,7 @@ async function selectConfigInstance(id) {
   // Load openclaw.json
   try {
     const data = await api('GET', `/api/config/openclaw/${id}`);
-    document.getElementById('json-pre-active').textContent = JSON.stringify(data, null, 2);
+    document.getElementById('json-pre-active').innerHTML = highlightJson(JSON.stringify(data, null, 2));
   } catch { document.getElementById('json-pre-active').textContent = 'Failed to load'; }
 
   // Wire add variable
@@ -967,6 +967,18 @@ function escHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function highlightJson(json) {
+  return escHtml(json).replace(
+    /("(?:\\.|[^"\\])*")\s*:/g, '<span class="json-key">$1</span>:'
+  ).replace(
+    /:\s*("(?:\\.|[^"\\])*")/g, ': <span class="json-str">$1</span>'
+  ).replace(
+    /:\s*(\d+\.?\d*)/g, ': <span class="json-num">$1</span>'
+  ).replace(
+    /:\s*(true|false|null)/g, ': <span class="json-bool">$1</span>'
+  );
 }
 
 // ── Bootstrap ──────────────────────────────────────────────────────────────

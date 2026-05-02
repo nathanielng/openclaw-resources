@@ -445,6 +445,7 @@ For GPU-heavy workloads: run the Gateway on a minimal VM and route model inferen
 ## References
 
 - [OpenClaw Security Docs](https://docs.openclaw.ai/gateway/security) — official threat models and hardening guidance
+- [How OpenClaw Got Safer in Public](https://openclaw.ai/blog/openclaw-security-in-public) - official blog on OpenClaw security
 - [SlowMist Security Practice Guide](https://github.com/slowmist/openclaw-security-practice-guide) — 3-tier defense matrix (agent-facing)
 - [awesome-openclaw-security](https://github.com/munnam77/awesome-openclaw-security) — scanner, CVE docs, production configs
 - [Hostinger VPS Hardening Guide](https://www.hostinger.com/support/how-to-secure-and-harden-openclaw-security/) — step-by-step for Docker deployments

@@ -99,6 +99,16 @@ function getOpenRouterKey(instanceId) {
   return m ? m[1].trim() : null;
 }
 
+function getProviderForInstance(instanceId) {
+  let configuredModel = null;
+  try {
+    const cfg = JSON.parse(fs.readFileSync(path.join(DATA_DIR, `instance-${instanceId}`, 'openclaw.json'), 'utf8'));
+    configuredModel = cfg.agents?.defaults?.model?.primary || null;
+  } catch {}
+  if (configuredModel && configuredModel.startsWith('amazon-bedrock/')) return 'bedrock';
+  return 'openrouter';
+}
+
 async function pollCredits(inst) {
   const key = getOpenRouterKey(inst.id);
   if (!key) { costState[inst.id] = { error: 'no API key' }; return; }
@@ -527,7 +537,9 @@ app.get('/api/instances', (_req, res) => {
       const cfg = JSON.parse(fs.readFileSync(path.join(DATA_DIR, `instance-${inst.id}`, 'openclaw.json'), 'utf8'));
       configuredModel = cfg.agents?.defaults?.model?.primary || null;
     } catch {}
-    return { ...inst, health: healthState[inst.id], openrouterModel: m ? m[1].trim() : null, configuredModel };
+    const model = configuredModel || (m ? m[1].trim() : null) || '';
+    const provider = model.startsWith('amazon-bedrock/') ? 'bedrock' : model.startsWith('openrouter/') ? 'openrouter' : null;
+    return { ...inst, health: healthState[inst.id], openrouterModel: m ? m[1].trim() : null, configuredModel, provider };
   }));
 });
 

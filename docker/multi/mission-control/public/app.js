@@ -25,6 +25,7 @@ let subscribedLogs = new Set([1, 2, 3, 4]); // always stream all; filter is disp
 let dragItemId   = null;
 let openrouterModels = {};
 let configuredModels = {};
+let providers = {};
 let startingInstances = new Set();
 let budget       = parseFloat(localStorage.getItem('budget') || '0') || 0;
 
@@ -118,6 +119,8 @@ function renderFleet() {
     const slashIdx = modelFull.indexOf('/');
     const modelProvider = slashIdx > -1 ? modelFull.slice(0, slashIdx) : '';
     const modelName = slashIdx > -1 ? modelFull.slice(slashIdx + 1) : modelFull;
+    const isBedrock = providers[id] === 'bedrock';
+    const providerLabel = isBedrock ? 'Bedrock' : (modelProvider || '');
     const usage = costData[id] ? (costData[id].usageDaily || 0) : 0;
     const running = status === 'healthy' || status === 'degraded';
 
@@ -143,7 +146,7 @@ function renderFleet() {
           <div class="meta-value">${lastCheck}</div>
         </div>
         <div class="meta-item meta-item-model">
-          <div class="meta-label">Model${modelProvider ? ` <span class="model-provider">(${modelProvider})</span>` : ''}</div>
+          <div class="meta-label">Model${providerLabel ? ` <span class="model-provider ${isBedrock ? 'provider-bedrock' : ''}">(${providerLabel})</span>` : ''}</div>
           <div class="meta-value model-value" title="${escHtml(modelFull)}">${modelName ? escHtml(modelName) : '—'}<button class="model-copy" data-model="${escHtml(modelFull)}" title="Copy full model ID">⧉</button></div>
         </div>
         <div class="meta-item">
@@ -546,13 +549,14 @@ function renderCost() {
 
   Object.entries(INSTANCE_META).forEach(([id, meta]) => {
     const d = costData[id] || {};
+    const isBedrock = providers[id] === 'bedrock';
     const overBudget = budget > 0 && (d.usageDaily || 0) > budget;
 
     const card = document.createElement('div');
     card.className = 'cost-card';
     card.style.borderColor = overBudget ? 'var(--dead)' : '';
     card.innerHTML = `
-      <h4 style="color:${meta.color}">${meta.label} (${id})</h4>
+      <h4 style="color:${meta.color}">${meta.label} (${id})${isBedrock ? ' <span class="provider-bedrock" style="font-size:10px">Bedrock</span>' : ''}</h4>
       ${d.error && !d.usage ? `<div class="cost-daily" style="color:var(--dead)">${escHtml(d.error)}</div>` : `
         <div class="cost-total">$${(d.usage || 0).toFixed(4)} total</div>
         <div class="cost-daily">Today: $${(d.usageDaily || 0).toFixed(4)}${overBudget ? ' ⚠ over budget' : ''}</div>
@@ -1065,6 +1069,7 @@ async function init() {
       healthData[inst.id] = inst.health;
       if (inst.openrouterModel) openrouterModels[inst.id] = inst.openrouterModel;
       if (inst.configuredModel) configuredModels[inst.id] = inst.configuredModel;
+      if (inst.provider) providers[inst.id] = inst.provider;
     });
     renderFleet();
 

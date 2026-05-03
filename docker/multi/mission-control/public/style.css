@@ -211,6 +211,7 @@ body {
 .meta-value { font-size: 13px; font-family: var(--font-mono); }
 
 .model-provider { font-weight: 400; opacity: 0.7; }
+.provider-bedrock { color: #f90; opacity: 1; font-weight: 500; }
 .meta-item-model { grid-column: 1 / -1; }
 .model-value { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 4px; }
 .model-copy { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 0 2px; flex-shrink: 0; opacity: 0; transition: opacity 0.15s; }

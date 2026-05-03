@@ -1,4 +1,13 @@
-.DS_Store
-.env
+# Instance data (contains API keys, tokens, sessions)
 docker/multi/data/
+docker/hermes/data/
 
+# Environment files with secrets
+.env
+!.env.example
+
+# OS
+.DS_Store
+
+# Node
+node_modules/

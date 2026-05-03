@@ -1,0 +1,32 @@
+# Hermes Agent — Docker Compose
+#
+# Usage:
+#   docker compose build              # first time only
+#   docker compose run --rm hermes setup   # interactive setup wizard
+#   docker compose up -d              # run gateway (Telegram, Discord, etc.)
+#   docker compose run --rm hermes         # interactive CLI session
+#
+# Data is stored in ./data/ (mounted as /opt/data inside the container).
+# All config, sessions, memories, and skills persist across container restarts.
+
+services:
+  hermes:
+    build:
+      context: https://github.com/NousResearch/hermes-agent.git#main
+    container_name: hermes
+    restart: unless-stopped
+    volumes:
+      - ./data:/opt/data
+    env_file:
+      - path: ./data/.env
+        required: false
+    environment:
+      - HERMES_UID=${HERMES_UID:-}
+      - HERMES_GID=${HERMES_GID:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    stdin_open: true
+    tty: true
+    # Gateway mode by default (for Telegram/Discord/etc.)
+    # Override with: docker compose run --rm hermes <command>
+    command: ["gateway", "run"]

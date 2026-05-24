@@ -1,6 +1,6 @@
 # Amazon Bedrock & Bedrock Mantle Setup Guide for OpenClaw
 
-> **Note:** This guide was AI-generated and tested in May 2026. It may contain inaccuracies, and configurations or model availability may change since that date. Always verify against the [official OpenClaw docs](https://docs.openclaw.ai) and [AWS Bedrock documentation](https://docs.aws.amazon.com/bedrock/) before applying changes to your setup.
+> **Note:** This guide was AI-generated and tested in May 2026. It may contain inaccuracies, and configurations or model availability may have changed since then. Always verify against the [official OpenClaw docs](https://docs.openclaw.ai) and [AWS Bedrock documentation](https://docs.aws.amazon.com/bedrock/) before applying changes to your setup.
 
 This guide covers configuring OpenClaw to use **Amazon Bedrock** (native runtime) and **Amazon Bedrock Mantle** (OpenAI-compatible surface) as model providers.
 
@@ -182,7 +182,27 @@ curl https://bedrock-mantle.us-east-1.api.aws/v1/models \
 
 ---
 
-## 6. Troubleshooting
+## 6. Discovery Commands
+
+Find the correct inference profile ID and verify model access from the CLI:
+
+```bash
+# List all Claude inference profiles (these are the IDs you use in config)
+aws bedrock list-inference-profiles --region us-east-1 \
+  --query "inferenceProfileSummaries[].inferenceProfileId" \
+  --output json | grep claude
+
+# Verify a specific model is authorized and available
+aws bedrock get-foundation-model-availability \
+  --model-id "anthropic.claude-sonnet-4-6" \
+  --region us-east-1
+```
+
+Look for `"authorizationStatus": "AUTHORIZED"` and `"entitlementAvailability": "AVAILABLE"` in the output.
+
+---
+
+## 7. Troubleshooting
 
 ### "on-demand throughput isn't supported"
 
@@ -227,7 +247,7 @@ openclaw gateway restart
 
 ---
 
-## 7. Verification
+## 8. Verification
 
 ```bash
 # Confirm models are registered
